@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "2.0",
-    "lastUpdated": "2026-06-12",
+    "lastUpdated": "2026-06-13",
     "description": "Universal Index — Archivio Personale Andrea Poletti"
   },
   "fonti": [
@@ -66,8 +66,8 @@
       "id": "gdrive-gmail",
       "label": "G-Drive unoaventi@gmail.com",
       "tipo": "gdrive",
-      "stato": "da-collegare",
-      "note": "",
+      "stato": "attivo",
+      "note": "rclone remote: drive-personale",
       "etichette": []
     },
     {

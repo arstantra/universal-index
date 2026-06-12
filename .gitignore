@@ -2,3 +2,6 @@
 .readme_gen_state.json
 __pycache__/
 *.pyc
+indice-universale.html
+indice-universale.json
+build-index.ps1
