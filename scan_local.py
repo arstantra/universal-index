@@ -8,9 +8,9 @@ la struttura e aggiorna data.json.
 USO (modalità config — raccomandata):
     python scan_local.py
 
-USO (modalità manuale — una fonte sola):
-    python scan_local.py --fonte ssd1 --root "D:/Archivio/2024"
-    python scan_local.py --fonte msi  --root "C:/Archivio" --dry-run
+USO (modalità manuale — una sola etichetta):
+    python scan_local.py --fonte msi --etichetta msi-rossa --root "C:/Users/.../Etichetta_Rossa"
+    python scan_local.py --fonte ssd1 --etichetta ssd1-gialla --root "D:/Etichetta_Gialla" --dry-run
 
 REGOLE APPLICATE (Parser Rules):
   - Ogni cartella in sources.json è trattata come cartella-anno o come
@@ -87,11 +87,12 @@ def valida_voce(meta: dict, cartella: Path) -> list[str]:
 
 # ─── SCANNER ───────────────────────────────────────────────────────────────────
 
-def scan_percorso(percorso: Path, fonte_id: str) -> tuple[list[dict], list[dict]]:
+def scan_percorso(percorso: Path, fonte_id: str, etichetta_id: str | None = None) -> tuple[list[dict], list[dict]]:
     """
     Scansione ricorsiva libera: esplora tutta la cartella in profondità,
     trova ogni README.md con frontmatter YAML valido e lo indicizza.
     Ignora cartelle/file che iniziano con _.
+    etichetta_id: id dell'etichetta (es. 'msi-rossa') da assegnare alle voci.
     """
     if not percorso.exists():
         print(f"  [ERRORE] Cartella non trovata: {percorso}")
@@ -101,7 +102,6 @@ def scan_percorso(percorso: Path, fonte_id: str) -> tuple[list[dict], list[dict]
 
     voci = []
     errori = []
-    root_str = str(percorso)
 
     for dirpath, dirnames, filenames in os.walk(percorso):
         # Rimuovi in-place le cartelle da ignorare (prefisso _)
@@ -133,6 +133,7 @@ def scan_percorso(percorso: Path, fonte_id: str) -> tuple[list[dict], list[dict]
         voce = {
             "id":         voce_id,
             "fonte":      fonte_id,
+            "etichetta":  etichetta_id,   # None se non classificato
             "percorso":   rel_path,
             "titolo":     meta.get('titolo', cartella.name),
             "anno":       anno_str,
@@ -152,42 +153,55 @@ def scan_percorso(percorso: Path, fonte_id: str) -> tuple[list[dict], list[dict]
 
 
 def scan_da_config(dry_run: bool = False):
-    """Legge sources.json e scansiona tutte le cartelle configurate."""
+    """
+    Legge sources.json (nuovo formato gerarchico: supporto > etichette)
+    e scansiona tutte le etichette configurate.
+    """
     if not SOURCES_JSON.exists():
         print(f"[ERRORE] {SOURCES_JSON} non trovato.")
         sys.exit(1)
 
     config = json.loads(SOURCES_JSON.read_text(encoding='utf-8'))
 
-    for fonte in config.get('fonti', []):
-        fonte_id = fonte['id']
-        etichetta = fonte.get('etichetta', fonte_id)
-        cartelle  = fonte.get('cartelle', [])
+    for supporto in config.get('fonti', []):
+        fonte_id    = supporto['id']
+        fonte_label = supporto.get('label', fonte_id)
+        etichette   = supporto.get('etichette', [])
 
-        print(f"\n🔍 Fonte: {etichetta} [{fonte_id}]")
+        print(f"\n🖥  Supporto: {fonte_label} [{fonte_id}]")
 
-        if not cartelle:
-            print("  [SKIP] Nessuna cartella definita per questa fonte.")
+        if not etichette:
+            print("  [SKIP] Nessuna etichetta configurata.")
             continue
 
-        voci_totali, errori_totali = [], []
-        for c in cartelle:
-            v, e = scan_percorso(Path(c), fonte_id)
-            voci_totali.extend(v)
-            errori_totali.extend(e)
+        for et in etichette:
+            et_id    = et.get('id')
+            et_label = et.get('label', et_id)
+            percorso = et.get('percorso_radice')
 
-        if errori_totali:
-            print(f"\n  ⚠  ERRORI STRUTTURALI ({len(errori_totali)}):")
-            for e in errori_totali:
-                print(f"     [{e['percorso']}] {e['errore']}")
+            print(f"\n  🏷  Etichetta: {et_label} [{et_id}]")
 
-        update_data_json(fonte_id, voci_totali, dry_run)
-        stampa_riepilogo(voci_totali, errori_totali)
+            if not percorso:
+                print("    [SKIP] Nessun percorso_radice definito.")
+                continue
+
+            voci, errori = scan_percorso(Path(percorso), fonte_id, etichetta_id=et_id)
+
+            if errori:
+                print(f"\n    ⚠  ERRORI STRUTTURALI ({len(errori)}):")
+                for e in errori:
+                    print(f"       [{e['percorso']}] {e['errore']}")
+
+            update_data_json(fonte_id, et_id, voci, dry_run)
+            stampa_riepilogo(voci, errori)
 
 # ─── AGGIORNA DATA.JSON ────────────────────────────────────────────────────────
 
-def update_data_json(fonte_id: str, nuove_voci: list[dict], dry_run: bool = False):
-    """Rimuove le voci precedenti della fonte e inserisce quelle nuove."""
+def update_data_json(fonte_id: str, etichetta_id: str | None, nuove_voci: list[dict], dry_run: bool = False):
+    """
+    Rimuove le voci precedenti della (fonte, etichetta) e inserisce quelle nuove.
+    Questo permette di ri-scansionare una singola etichetta senza toccare le altre.
+    """
     if not DATA_JSON.exists():
         print(f"[ERRORE] {DATA_JSON} non trovato.")
         sys.exit(1)
@@ -196,18 +210,20 @@ def update_data_json(fonte_id: str, nuove_voci: list[dict], dry_run: bool = Fals
 
     fonte_registrata = any(f['id'] == fonte_id for f in db.get('fonti', []))
     if not fonte_registrata:
-        print(f"  [ATTENZIONE] Fonte '{fonte_id}' non registrata in data.json. Aggiungila dalla dashboard.")
+        print(f"    [ATTENZIONE] Supporto '{fonte_id}' non registrato in data.json. Aggiungilo dalla dashboard.")
 
-    db['voci'] = [v for v in db.get('voci', []) if v.get('fonte') != fonte_id]
+    # Rimuovi solo le voci di questa (fonte + etichetta)
+    db['voci'] = [v for v in db.get('voci', [])
+                  if not (v.get('fonte') == fonte_id and v.get('etichetta') == etichetta_id)]
     db['voci'].extend(nuove_voci)
     db['meta']['lastUpdated'] = date.today().isoformat()
 
     if dry_run:
-        print(f"\n  [DRY RUN] Nessuna modifica salvata. Voci trovate: {len(nuove_voci)}")
+        print(f"\n    [DRY RUN] Nessuna modifica salvata. Voci trovate: {len(nuove_voci)}")
         return
 
     DATA_JSON.write_text(json.dumps(db, ensure_ascii=False, indent=2), encoding='utf-8')
-    print(f"\n  ✅ data.json aggiornato: {len(nuove_voci)} voci per '{fonte_id}'.")
+    print(f"\n    ✅ data.json aggiornato: {len(nuove_voci)} voci per '{fonte_id}/{etichetta_id}'.")
 
 def stampa_riepilogo(voci: list[dict], errori: list[dict]):
     print(f"  📊 Voci: {len(voci)} | "
@@ -221,20 +237,22 @@ def stampa_riepilogo(voci: list[dict], errori: list[dict]):
 
 def main():
     parser = argparse.ArgumentParser(description='Universal Index — Scanner Locale')
-    parser.add_argument('--fonte',   help='ID fonte (modalità manuale)')
-    parser.add_argument('--root',    help='Cartella radice (modalità manuale)')
-    parser.add_argument('--dry-run', action='store_true', help='Simula senza scrivere su data.json')
+    parser.add_argument('--fonte',     help='ID supporto (modalità manuale, es. msi)')
+    parser.add_argument('--etichetta', help='ID etichetta (modalità manuale, es. msi-rossa)')
+    parser.add_argument('--root',      help='Cartella radice (modalità manuale)')
+    parser.add_argument('--dry-run',   action='store_true', help='Simula senza scrivere su data.json')
     args = parser.parse_args()
 
     if args.fonte and args.root:
         # Modalità manuale: scansiona un singolo percorso
-        print(f"\n🔍 Scansione manuale fonte '{args.fonte}' in: {args.root}\n")
-        voci, errori = scan_percorso(Path(args.root), args.fonte)
+        et_id = args.etichetta or None
+        print(f"\n🔍 Scansione manuale '{args.fonte}' / etichetta '{et_id}' in: {args.root}\n")
+        voci, errori = scan_percorso(Path(args.root), args.fonte, etichetta_id=et_id)
         if errori:
             print(f"\n⚠  ERRORI STRUTTURALI ({len(errori)}):")
             for e in errori:
                 print(f"   [{e['percorso']}] {e['errore']}")
-        update_data_json(args.fonte, voci, args.dry_run)
+        update_data_json(args.fonte, et_id, voci, args.dry_run)
         stampa_riepilogo(voci, errori)
     else:
         # Modalità config: legge sources.json

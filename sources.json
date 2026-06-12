@@ -1,14 +1,18 @@
 {
-  "_istruzioni": "Aggiungi qui le cartelle da indicizzare. Puoi usare cartelle-anno specifiche o una root intera.",
+  "_istruzioni": "Definisci qui i supporti e le etichette da scansionare. Ogni etichetta ha un id che combacia con quello in data.json. Aggiungi nuove etichette man mano che colleghi i supporti.",
   "fonti": [
     {
-      "id": "archivio-locale",
-      "etichetta": "Archivio Personale",
+      "id": "msi",
+      "label": "Computer MSI",
       "tipo": "locale",
-      "cartelle": [
-        "C:/Users/unoav/OneDrive/Etichetta_Rossa"
-      ],
-      "note": "Modifica 'cartelle' aggiungendo o rimuovendo i percorsi che vuoi indicizzare"
+      "etichette": [
+        {
+          "id": "msi-rossa",
+          "label": "Etichetta Rossa",
+          "colore": "rossa",
+          "percorso_radice": "C:/Users/unoav/OneDrive/Etichetta_Rossa"
+        }
+      ]
     }
   ]
 }

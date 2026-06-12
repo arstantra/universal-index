@@ -18,6 +18,9 @@
       --warn: #f0b429;
       --err: #ff5c5c;
       --da-svuotare: #ff7043;
+      --rossa: #ff5c5c;
+      --gialla: #f0b429;
+      --blu: #4f7cff;
       --radius: 8px;
       --font: 'Segoe UI', system-ui, sans-serif;
     }
@@ -28,7 +31,7 @@
     header {
       background: linear-gradient(135deg, var(--surface) 0%, #1e2140 100%);
       border-bottom: 1px solid var(--border);
-      padding: 20px 32px;
+      padding: 18px 28px;
       display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
     }
     header h1 { font-size: 20px; font-weight: 700; letter-spacing: .02em; }
@@ -36,37 +39,76 @@
     #lastUpdated { color: var(--text2); font-size: 12px; }
 
     /* LAYOUT */
-    .app { display: grid; grid-template-columns: 260px 1fr; min-height: calc(100vh - 65px); }
+    .app { display: grid; grid-template-columns: 280px 1fr; min-height: calc(100vh - 62px); }
 
-    /* SIDEBAR */
+    /* ── SIDEBAR ─────────────────────────────────────────────────────────────── */
     aside {
       background: var(--surface);
       border-right: 1px solid var(--border);
-      padding: 20px 16px;
+      padding: 16px 12px;
       overflow-y: auto;
+      display: flex; flex-direction: column; gap: 4px;
     }
-    aside h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--text2); margin-bottom: 12px; padding: 0 4px; }
-    .fonte-item {
-      display: flex; align-items: center; gap: 10px;
-      padding: 8px 10px; border-radius: var(--radius); cursor: pointer;
-      transition: background .1s; margin-bottom: 2px;
+    aside .section-label {
+      font-size: 10px; text-transform: uppercase; letter-spacing: .12em;
+      color: var(--text2); padding: 4px 8px 8px; margin-top: 4px;
     }
-    .fonte-item:hover { background: var(--surface2); }
-    .fonte-item.active { background: var(--surface2); }
-    .fonte-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-    .fonte-name { flex: 1; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .fonte-count { font-size: 11px; color: var(--text2); background: var(--surface2); padding: 2px 7px; border-radius: 10px; }
-    .fonte-stato {
-      font-size: 10px; padding: 2px 6px; border-radius: 4px; white-space: nowrap; font-weight: 500;
-    }
-    .fonte-stato.collegato    { background: #0d3326; color: var(--ok); }
-    .fonte-stato.da-collegare { background: #1e1e2e; color: var(--text2); }
-    .fonte-stato.da-svuotare  { background: #2a1200; color: var(--da-svuotare); }
 
-    /* tipo dot colors */
+    /* Voce "Tutte" */
+    .fonte-all {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 10px; border-radius: var(--radius); cursor: pointer;
+      transition: background .1s; margin-bottom: 4px;
+    }
+    .fonte-all:hover { background: var(--surface2); }
+    .fonte-all.active { background: var(--surface2); }
+    .fonte-all-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+    .fonte-all-name { flex: 1; font-size: 13px; font-weight: 500; }
+    .fonte-all-count { font-size: 11px; color: var(--text2); background: var(--surface2); padding: 2px 7px; border-radius: 10px; }
+
+    /* Supporto fisico/virtuale */
+    .supporto-wrap { margin-bottom: 2px; }
+    .supporto-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 10px; border-radius: var(--radius); cursor: pointer;
+      transition: background .1s; user-select: none;
+    }
+    .supporto-row:hover { background: var(--surface2); }
+    .supporto-row.active { background: var(--surface2); }
+    .supporto-arrow { font-size: 8px; color: var(--text2); width: 10px; text-align: center; flex-shrink: 0; transition: transform .15s; }
+    .supporto-arrow.open { transform: rotate(90deg); }
+    .supporto-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
     .dot-locale  { background: var(--accent); }
     .dot-gdrive  { background: var(--ok); }
     .dot-dropbox { background: #6c86c4; }
+    .supporto-name { flex: 1; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .supporto-stato {
+      font-size: 10px; padding: 2px 6px; border-radius: 4px; white-space: nowrap; font-weight: 500; flex-shrink: 0;
+    }
+    .supporto-stato.attivo    { background: #0d3326; color: var(--ok); }
+    .supporto-stato.parziale  { background: #0d2035; color: #6aadff; }
+    .supporto-stato.da-collegare { background: #1e1e2e; color: var(--text2); }
+    .supporto-stato.da-svuotare  { background: #2a1200; color: var(--da-svuotare); }
+    .supporto-count { font-size: 11px; color: var(--text2); background: var(--surface2); padding: 1px 6px; border-radius: 10px; flex-shrink: 0; }
+
+    /* Etichette sotto un supporto */
+    .etichette-list { display: none; padding-left: 18px; }
+    .etichette-list.open { display: block; }
+    .etichetta-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 5px 10px; border-radius: var(--radius); cursor: pointer;
+      transition: background .1s; margin-bottom: 1px;
+    }
+    .etichetta-row:hover { background: var(--surface2); }
+    .etichetta-row.active { background: var(--surface2); }
+    .etichetta-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .dot-rossa  { background: var(--rossa); }
+    .dot-gialla { background: var(--gialla); }
+    .dot-blu    { background: var(--blu); }
+    .dot-nessuna { background: #555; }
+    .etichetta-name { flex: 1; font-size: 12px; }
+    .etichetta-count { font-size: 10px; color: var(--text2); background: var(--surface2); padding: 1px 6px; border-radius: 10px; flex-shrink: 0; }
+    .etichetta-stato { font-size: 10px; color: var(--text2); }
 
     .add-fonte-btn {
       width: 100%; padding: 8px; border-radius: var(--radius);
@@ -76,38 +118,38 @@
     }
     .add-fonte-btn:hover { border-color: var(--accent); color: var(--accent); }
 
-    /* LOCAL SERVER BADGE */
-    #localBadge {
-      display: none;
-      font-size: 11px; padding: 3px 10px; border-radius: 10px;
-      background: #0d3326; color: var(--ok); border: 1px solid #1a5c3a;
-      margin-top: 10px; text-align: center;
-    }
-
     /* MAIN */
-    main { padding: 24px 32px; overflow-y: auto; }
+    main { padding: 22px 28px; overflow-y: auto; }
 
     /* STATS BAR */
-    .stats { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+    .stats { display: flex; gap: 14px; margin-bottom: 22px; flex-wrap: wrap; }
     .stat-card {
       background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 14px 20px; flex: 1; min-width: 120px;
+      border-radius: var(--radius); padding: 12px 18px; flex: 1; min-width: 110px;
     }
-    .stat-card .num { font-size: 28px; font-weight: 700; color: var(--accent); }
-    .stat-card .lbl { font-size: 11px; color: var(--text2); margin-top: 2px; text-transform: uppercase; letter-spacing: .05em; }
+    .stat-card .num { font-size: 26px; font-weight: 700; color: var(--accent); }
+    .stat-card .lbl { font-size: 10px; color: var(--text2); margin-top: 2px; text-transform: uppercase; letter-spacing: .06em; }
+
+    /* CONTEXT BREADCRUMB */
+    #contextBar {
+      font-size: 12px; color: var(--text2); margin-bottom: 14px;
+      display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    }
+    #contextBar .crumb-sep { opacity: .4; }
+    #contextBar .crumb-etichetta { font-weight: 600; }
 
     /* TOOLBAR */
-    .toolbar { display: flex; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; align-items: center; }
+    .toolbar { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
     .search-wrap { position: relative; flex: 1; min-width: 200px; }
     .search-wrap input {
-      width: 100%; padding: 9px 14px 9px 36px;
+      width: 100%; padding: 8px 12px 8px 34px;
       background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
       color: var(--text); font-size: 13px; outline: none; transition: border .15s;
     }
     .search-wrap input:focus { border-color: var(--accent); }
-    .search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text2); font-size: 14px; pointer-events: none; }
+    .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text2); font-size: 13px; pointer-events: none; }
     select {
-      padding: 9px 12px; background: var(--surface); border: 1px solid var(--border);
+      padding: 8px 11px; background: var(--surface); border: 1px solid var(--border);
       border-radius: var(--radius); color: var(--text); font-size: 13px; outline: none; cursor: pointer;
     }
     select:focus { border-color: var(--accent); }
@@ -117,7 +159,7 @@
       display: flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; flex-shrink: 0;
     }
     .view-toggle button {
-      padding: 8px 14px; background: transparent; border: none; color: var(--text2);
+      padding: 7px 13px; background: transparent; border: none; color: var(--text2);
       cursor: pointer; font-size: 12px; font-weight: 500; transition: all .15s; white-space: nowrap;
     }
     .view-toggle button:hover { background: var(--surface2); color: var(--text); }
@@ -128,8 +170,8 @@
     .table-wrap { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; }
     thead th {
-      text-align: left; padding: 10px 14px;
-      font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+      text-align: left; padding: 9px 13px;
+      font-size: 10px; text-transform: uppercase; letter-spacing: .08em;
       color: var(--text2); border-bottom: 1px solid var(--border);
       cursor: pointer; user-select: none; white-space: nowrap;
     }
@@ -138,10 +180,9 @@
     thead th.sorted .sort-arrow { opacity: 1; color: var(--accent); }
     tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; cursor: default; }
     tbody tr:hover { background: var(--surface2); }
-    tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
+    tbody td { padding: 9px 13px; font-size: 13px; vertical-align: middle; }
     .cell-titolo { font-weight: 500; max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .cell-percorso { color: var(--text2); font-size: 11px; font-family: monospace; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .cell-fonte { font-size: 12px; }
 
     /* BADGES */
     .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; white-space: nowrap; }
@@ -150,16 +191,18 @@
     .badge-stato-da-revisionare { background: #2a2300; color: var(--warn); }
     .badge-stato-archivio-morto { background: #1e1e1e; color: #888; }
     .badge-tipo { background: var(--surface2); color: var(--text2); }
+    .badge-etichetta-rossa  { background: #2a0d0d; color: var(--rossa); }
+    .badge-etichetta-gialla { background: #2a2000; color: var(--gialla); }
+    .badge-etichetta-blu    { background: #0d1a35; color: var(--blu); }
+    .badge-etichetta-none   { background: var(--surface2); color: var(--text2); }
 
-    /* STATO BUTTON (locale only) */
+    /* STATO BUTTON */
     .stato-btn {
       display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500;
-      white-space: nowrap; cursor: pointer; border: none; position: relative;
-      transition: opacity .15s, transform .1s;
+      white-space: nowrap; cursor: pointer; border: none; position: relative; transition: opacity .15s, transform .1s;
     }
     .stato-btn:hover:not(.frozen) { opacity: .8; transform: scale(1.05); }
     .stato-btn.frozen { cursor: not-allowed; opacity: .5; }
-
     .stato-dropdown {
       position: absolute; top: calc(100% + 4px); left: 0; z-index: 50;
       background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
@@ -177,6 +220,64 @@
     .dot-da-revisionare { background: var(--warn); }
     .dot-archivio-morto { background: #888; }
 
+    /* ── TREE VIEW ─────────────────────────────────────────────────────────── */
+    .tree-wrap { display: none; }
+
+    /* Livello 0: Etichetta */
+    .tree-etichetta-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 12px; cursor: pointer; border-radius: var(--radius);
+      transition: background .1s; user-select: none; margin-bottom: 2px;
+      border-left: 3px solid transparent;
+    }
+    .tree-etichetta-row:hover { background: var(--surface2); }
+    .tree-etichetta-row.et-rossa  { border-left-color: var(--rossa); }
+    .tree-etichetta-row.et-gialla { border-left-color: var(--gialla); }
+    .tree-etichetta-row.et-blu    { border-left-color: var(--blu); }
+    .tree-etichetta-row.et-none   { border-left-color: #555; }
+
+    .tree-folder-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 12px; cursor: pointer; border-radius: var(--radius);
+      transition: background .1s; user-select: none;
+    }
+    .tree-folder-row:hover { background: var(--surface2); }
+    .tree-arrow { font-size: 8px; color: var(--text2); width: 10px; text-align: center; flex-shrink: 0; transition: transform .15s; }
+    .tree-arrow.open { transform: rotate(90deg); }
+    .tree-folder-icon { font-size: 14px; flex-shrink: 0; }
+    .tree-folder-name { font-size: 13px; font-weight: 500; flex: 1; }
+    .tree-folder-count {
+      font-size: 11px; color: var(--text2); background: var(--surface2);
+      padding: 1px 7px; border-radius: 10px; flex-shrink: 0;
+    }
+    .tree-children { display: none; }
+    .tree-children.open { display: block; }
+
+    .tree-leaf-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 5px 12px; border-radius: var(--radius); transition: background .1s;
+    }
+    .tree-leaf-row:hover { background: var(--surface2); }
+    .tree-leaf-icon  { font-size: 12px; flex-shrink: 0; color: var(--text2); }
+    .tree-leaf-title { font-size: 13px; flex: 1; }
+    .tree-leaf-tags  { font-size: 11px; color: var(--text2); max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* EMPTY STATE */
+    .empty { text-align: center; padding: 60px 20px; color: var(--text2); }
+    .empty .icon { font-size: 48px; margin-bottom: 12px; }
+
+    /* PENDENZE PANEL */
+    .pendenze-section { margin-top: 28px; }
+    .pendenze-section h2 { font-size: 14px; font-weight: 600; color: var(--warn); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .pendenza-list { display: flex; flex-direction: column; gap: 8px; }
+    .pendenza-item {
+      background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--warn);
+      border-radius: var(--radius); padding: 10px 14px;
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    }
+    .pendenza-item .p-title { font-size: 13px; font-weight: 500; }
+    .pendenza-item .p-meta  { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
     /* TOAST */
     #toast {
       position: fixed; bottom: 24px; right: 24px; z-index: 200;
@@ -190,74 +291,41 @@
     #toast.warn { border-left: 3px solid var(--warn); }
     #toast.err  { border-left: 3px solid var(--err); }
 
-    /* ── TREE VIEW ─────────────────────────────────────────────────────────── */
-    .tree-wrap { display: none; }
-
-    .tree-folder-row {
-      display: flex; align-items: center; gap: 8px;
-      padding: 7px 12px; cursor: pointer; border-radius: var(--radius);
-      transition: background .1s; user-select: none;
-    }
-    .tree-folder-row:hover { background: var(--surface2); }
-    .tree-arrow { font-size: 9px; color: var(--text2); width: 12px; text-align: center; flex-shrink: 0; }
-    .tree-folder-icon { font-size: 14px; flex-shrink: 0; }
-    .tree-folder-name { font-size: 13px; font-weight: 500; flex: 1; }
-    .tree-folder-count {
-      font-size: 11px; color: var(--text2); background: var(--surface2);
-      padding: 1px 7px; border-radius: 10px; flex-shrink: 0;
-    }
-    .tree-children { display: none; }
-    .tree-children.open { display: block; }
-
-    .tree-leaf-row {
-      display: flex; align-items: center; gap: 8px;
-      padding: 6px 12px; border-radius: var(--radius);
-      transition: background .1s;
-    }
-    .tree-leaf-row:hover { background: var(--surface2); }
-    .tree-leaf-icon  { font-size: 13px; flex-shrink: 0; color: var(--text2); }
-    .tree-leaf-title { font-size: 13px; flex: 1; }
-    .tree-leaf-tags  { font-size: 11px; color: var(--text2); max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .tree-fonte-chip { font-size: 10px; color: var(--text2); background: var(--surface2); padding: 1px 6px; border-radius: 4px; flex-shrink: 0; }
-
-    /* EMPTY STATE */
-    .empty { text-align: center; padding: 60px 20px; color: var(--text2); }
-    .empty .icon { font-size: 48px; margin-bottom: 12px; }
-
-    /* PENDENZE PANEL */
-    .pendenze-section { margin-top: 32px; }
-    .pendenze-section h2 { font-size: 14px; font-weight: 600; color: var(--warn); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-    .pendenza-list { display: flex; flex-direction: column; gap: 8px; }
-    .pendenza-item {
-      background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--warn);
-      border-radius: var(--radius); padding: 10px 14px;
-      display: flex; justify-content: space-between; align-items: center; gap: 12px;
-    }
-    .pendenza-item .p-title { font-size: 13px; font-weight: 500; }
-    .pendenza-item .p-meta  { font-size: 11px; color: var(--text2); margin-top: 2px; }
-
     /* MODAL */
     .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 100; align-items: center; justify-content: center; }
     .overlay.open { display: flex; }
     .modal {
       background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
-      padding: 28px; width: 420px; max-width: 95vw;
+      padding: 28px; width: 480px; max-width: 95vw;
     }
     .modal h3 { font-size: 16px; margin-bottom: 20px; }
+    .modal-tabs { display: flex; gap: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 20px; }
+    .modal-tab { flex: 1; padding: 8px; background: transparent; border: none; color: var(--text2); cursor: pointer; font-size: 12px; font-weight: 500; transition: all .15s; }
+    .modal-tab:hover { background: var(--surface2); color: var(--text); }
+    .modal-tab.active { background: var(--surface2); color: var(--accent); }
+    .modal-tab:first-child { border-right: 1px solid var(--border); }
+    .modal-panel { display: none; }
+    .modal-panel.active { display: block; }
     .form-row { margin-bottom: 14px; }
     .form-row label { display: block; font-size: 11px; color: var(--text2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .05em; }
     .form-row input, .form-row select { width: 100%; padding: 9px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 13px; outline: none; }
     .form-row input:focus, .form-row select:focus { border-color: var(--accent); }
+    .form-hint { font-size: 11px; color: var(--text2); margin-top: 4px; }
     .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
-    .btn { padding: 9px 18px; border-radius: var(--radius); font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: opacity .15s; }
+    .btn { padding: 8px 16px; border-radius: var(--radius); font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: opacity .15s; }
     .btn-primary { background: var(--accent); color: #fff; }
     .btn-primary:hover { opacity: .85; }
     .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
     .btn-ghost:hover { border-color: var(--text2); }
 
+    #localBadge {
+      display: none; font-size: 11px; padding: 3px 10px; border-radius: 10px;
+      background: #0d3326; color: var(--ok); border: 1px solid #1a5c3a; margin-top: 10px; text-align: center;
+    }
+
     @media (max-width: 768px) {
       .app { grid-template-columns: 1fr; }
-      aside { border-right: none; border-bottom: 1px solid var(--border); max-height: 220px; }
+      aside { border-right: none; border-bottom: 1px solid var(--border); max-height: 240px; }
       main { padding: 16px; }
     }
   </style>
@@ -278,13 +346,14 @@
 <div class="app">
 
   <aside>
-    <h2>Fonti</h2>
     <div id="fonteList"></div>
     <div id="localBadge">● server locale attivo</div>
   </aside>
 
   <main>
     <div class="stats" id="statsBar"></div>
+
+    <div id="contextBar"></div>
 
     <div class="toolbar">
       <div class="search-wrap">
@@ -305,6 +374,7 @@
         <option value="convegno">Convegno</option>
         <option value="appunti">Appunti</option>
         <option value="portfolio">Portfolio</option>
+        <option value="archivio">Archivio</option>
       </select>
       <select id="filterAnno" onchange="applyFilters()">
         <option value="">Tutti gli anni</option>
@@ -324,7 +394,7 @@
             <th onclick="sortBy('anno')">Anno <span class="sort-arrow" id="arrow-anno">↕</span></th>
             <th onclick="sortBy('tipo')">Tipo <span class="sort-arrow" id="arrow-tipo">↕</span></th>
             <th onclick="sortBy('stato')">Stato <span class="sort-arrow" id="arrow-stato">↕</span></th>
-            <th onclick="sortBy('fonte')">Fonte <span class="sort-arrow" id="arrow-fonte">↕</span></th>
+            <th onclick="sortBy('etichetta')">Etichetta <span class="sort-arrow" id="arrow-etichetta">↕</span></th>
             <th>Percorso</th>
           </tr>
         </thead>
@@ -351,30 +421,66 @@
 <div class="overlay" id="modal">
   <div class="modal">
     <h3>➕ Aggiungi Fonte</h3>
-    <div class="form-row">
-      <label>ID univoco (es. ssd3)</label>
-      <input id="m-id" type="text" placeholder="ssd3" />
+    <div class="modal-tabs">
+      <button class="modal-tab active" onclick="switchModalTab('supporto')">Nuovo supporto</button>
+      <button class="modal-tab" onclick="switchModalTab('etichetta')">Etichetta su supporto esistente</button>
     </div>
-    <div class="form-row">
-      <label>Etichetta leggibile</label>
-      <input id="m-label" type="text" placeholder="SSD 3 — Samsung T7" />
+
+    <!-- Panel: Nuovo supporto -->
+    <div class="modal-panel active" id="panel-supporto">
+      <div class="form-row">
+        <label>Nome del supporto</label>
+        <input id="m-label" type="text" placeholder="es. Computer Dell, SSD Samsung T7" />
+      </div>
+      <div class="form-row">
+        <label>Tipo</label>
+        <select id="m-tipo">
+          <option value="locale">Locale (computer / HD / SSD)</option>
+          <option value="gdrive">Google Drive</option>
+          <option value="dropbox">Dropbox</option>
+          <option value="altro">Altro</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Note (opzionale)</label>
+        <input id="m-note" type="text" placeholder="es. account, descrizione..." />
+      </div>
     </div>
-    <div class="form-row">
-      <label>Tipo</label>
-      <select id="m-tipo">
-        <option value="locale">Locale (HD/SSD/computer)</option>
-        <option value="gdrive">Google Drive</option>
-        <option value="dropbox">Dropbox</option>
-        <option value="altro">Altro</option>
-      </select>
+
+    <!-- Panel: Etichetta su supporto esistente -->
+    <div class="modal-panel" id="panel-etichetta">
+      <div class="form-row">
+        <label>Supporto</label>
+        <select id="m-supporto-sel"></select>
+      </div>
+      <div class="form-row">
+        <label>Nome etichetta</label>
+        <input id="m-et-label" type="text" placeholder="es. Etichetta Verde" />
+      </div>
+      <div class="form-row">
+        <label>Colore</label>
+        <select id="m-et-colore">
+          <option value="rossa">🔴 Rossa — progetti caldi</option>
+          <option value="gialla">🟡 Gialla — architettura / design</option>
+          <option value="blu">🔵 Blu — fotografie / video / archivio</option>
+          <option value="verde">🟢 Verde</option>
+          <option value="altro">⚪ Altro</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Percorso radice (opzionale — se già disponibile)</label>
+        <input id="m-et-percorso" type="text" placeholder="es. D:/Etichetta_Rossa" />
+        <div class="form-hint">Lascia vuoto se il supporto non è ancora collegato</div>
+      </div>
+      <div class="form-row">
+        <label>Descrizione (opzionale)</label>
+        <input id="m-et-desc" type="text" placeholder="es. Progetti in corso" />
+      </div>
     </div>
-    <div class="form-row">
-      <label>Note</label>
-      <input id="m-note" type="text" placeholder="opzionale" />
-    </div>
+
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal()">Annulla</button>
-      <button class="btn btn-primary" onclick="aggiungiFornte()">Aggiungi</button>
+      <button class="btn btn-primary" onclick="aggiungi()">Aggiungi</button>
     </div>
   </div>
 </div>
@@ -385,13 +491,15 @@
 <script>
   let db = { meta: {}, fonti: [], voci: [] };
   let filteredVoci = [];
-  let activeFonte  = 'all';
-  let sortKey      = 'anno';
-  let sortDir      = -1;
-  let currentView  = 'lista';
-  let expandedNodes = new Set();
+  let activeFonte    = 'all';   // 'all' | supporto id | 'etichetta:id'
+  let sortKey        = 'anno';
+  let sortDir        = -1;
+  let currentView    = 'lista';
+  let expandedNodes  = new Set();
+  let expandedSupporti = new Set();
+  let currentModalTab = 'supporto';
 
-  const isLocal = (location.protocol === 'http:') &&
+  const isLocal = location.protocol === 'http:' &&
     (location.hostname === 'localhost' || location.hostname === '127.0.0.1');
 
   // ─── LOAD ───────────────────────────────────────────────────────────────────
@@ -400,11 +508,7 @@
       const r = await fetch('data.json');
       db = await r.json();
     } catch(e) {
-      db = {
-        meta: { lastUpdated: '—' },
-        fonti: [{ id:'demo', label:'Demo', tipo:'locale', stato:'da-collegare', note:'' }],
-        voci: []
-      };
+      db = { meta: { lastUpdated: '—' }, fonti: [], voci: [] };
     }
     init();
   }
@@ -417,34 +521,138 @@
     applyFilters();
   }
 
+  // ─── HELPERS ────────────────────────────────────────────────────────────────
+  function getSupporto(id) { return db.fonti.find(f => f.id === id); }
+
+  function getEtichetta(eId) {
+    for (const f of db.fonti) {
+      const et = (f.etichette || []).find(e => e.id === eId);
+      if (et) return { supporto: f, etichetta: et };
+    }
+    return null;
+  }
+
+  function allEtichette() {
+    const result = [];
+    db.fonti.forEach(f => (f.etichette || []).forEach(e => result.push({ supporto: f, etichetta: e })));
+    return result;
+  }
+
+  function vociDiSupporto(fId) { return db.voci.filter(v => v.fonte === fId); }
+  function vociDiEtichetta(eId) { return db.voci.filter(v => v.etichetta === eId); }
+
+  function etichettaLabel(eId) {
+    if (!eId) return 'Non classificato';
+    const r = getEtichetta(eId);
+    return r ? r.etichetta.label : eId;
+  }
+
+  function etichettaColore(eId) {
+    if (!eId) return 'nessuna';
+    const r = getEtichetta(eId);
+    return r ? r.etichetta.colore : 'nessuna';
+  }
+
+  // Restituisce le voci filtrate per la selezione corrente (prima di altri filtri)
+  function voceMatchesSelezione(v) {
+    if (activeFonte === 'all') return true;
+    if (activeFonte.startsWith('et:')) return v.etichetta === activeFonte.slice(3);
+    return v.fonte === activeFonte;
+  }
+
   // ─── SIDEBAR ────────────────────────────────────────────────────────────────
   function renderSidebar() {
     const container = document.getElementById('fonteList');
-    const countAll  = db.voci.length;
-    container.innerHTML = `
-      <div class="fonte-item active" data-id="all" onclick="selectFonte('all')">
-        <div class="fonte-dot" style="background:#4f7cff"></div>
-        <div class="fonte-name">Tutte le fonti</div>
-        <div class="fonte-count">${countAll}</div>
+    const totalCount = db.voci.length;
+
+    let html = `
+      <div class="section-label">Fonti</div>
+      <div class="fonte-all ${activeFonte === 'all' ? 'active' : ''}" onclick="selectFonte('all')">
+        <div class="fonte-all-dot"></div>
+        <div class="fonte-all-name">Tutte le fonti</div>
+        <div class="fonte-all-count">${totalCount}</div>
       </div>`;
+
     db.fonti.forEach(f => {
-      const count = db.voci.filter(v => v.fonte === f.id).length;
-      const statoClass = f.stato.replace(/\s/g,'-');
-      container.innerHTML += `
-        <div class="fonte-item" data-id="${f.id}" onclick="selectFonte('${f.id}')">
-          <div class="fonte-dot dot-${f.tipo}"></div>
-          <div class="fonte-name" title="${f.label}">${f.label}</div>
-          <span class="fonte-stato ${statoClass}">${f.stato}</span>
-          <div class="fonte-count">${count}</div>
+      const vociF   = vociDiSupporto(f.id);
+      const isOpen  = expandedSupporti.has(f.id);
+      const isActive = activeFonte === f.id;
+      const statoClass = (f.stato || 'da-collegare').replace(/\s/g, '-');
+      const hasEt = (f.etichette || []).length > 0;
+
+      html += `<div class="supporto-wrap">
+        <div class="supporto-row ${isActive ? 'active' : ''}" onclick="selectFonte('${f.id}')">
+          ${hasEt
+            ? `<span class="supporto-arrow ${isOpen ? 'open' : ''}" onclick="toggleSupporto(event,'${f.id}')">▶</span>`
+            : `<span style="width:10px;flex-shrink:0"></span>`}
+          <div class="supporto-dot dot-${f.tipo}"></div>
+          <div class="supporto-name" title="${f.label}">${f.label}</div>
+          ${vociF.length > 0
+            ? `<div class="supporto-count">${vociF.length}</div>`
+            : `<span class="supporto-stato ${statoClass}">${f.stato || 'da-collegare'}</span>`}
         </div>`;
+
+      if (hasEt) {
+        html += `<div class="etichette-list ${isOpen ? 'open' : ''}" id="et-list-${f.id}">`;
+        (f.etichette || []).forEach(e => {
+          const vociE  = vociDiEtichetta(e.id);
+          const eKey   = 'et:' + e.id;
+          const isActE = activeFonte === eKey;
+          html += `
+            <div class="etichetta-row ${isActE ? 'active' : ''}" onclick="selectFonte('${eKey}')">
+              <div class="etichetta-dot dot-${e.colore || 'nessuna'}"></div>
+              <div class="etichetta-name">${e.label}</div>
+              ${vociE.length > 0
+                ? `<div class="etichetta-count">${vociE.length}</div>`
+                : `<span class="etichetta-stato">${e.stato || 'da-collegare'}</span>`}
+            </div>`;
+        });
+        html += `</div>`;
+      }
+      html += `</div>`;
     });
-    container.innerHTML += `<button class="add-fonte-btn" onclick="openModal()">＋ Nuova fonte</button>`;
+
+    html += `<button class="add-fonte-btn" onclick="openModal()">＋ Aggiungi fonte</button>`;
+    container.innerHTML = html;
+  }
+
+  function toggleSupporto(e, id) {
+    e.stopPropagation();
+    if (expandedSupporti.has(id)) expandedSupporti.delete(id);
+    else expandedSupporti.add(id);
+    renderSidebar();
   }
 
   function selectFonte(id) {
     activeFonte = id;
-    document.querySelectorAll('.fonte-item').forEach(el => el.classList.toggle('active', el.dataset.id === id));
+    // Auto-espandi il supporto padre se selezioniamo un'etichetta
+    if (id.startsWith('et:')) {
+      const eId = id.slice(3);
+      for (const f of db.fonti) {
+        if ((f.etichette || []).some(e => e.id === eId)) {
+          expandedSupporti.add(f.id);
+          break;
+        }
+      }
+    }
+    renderSidebar();
     applyFilters();
+    updateContextBar();
+  }
+
+  function updateContextBar() {
+    const bar = document.getElementById('contextBar');
+    if (activeFonte === 'all') { bar.innerHTML = ''; return; }
+    if (activeFonte.startsWith('et:')) {
+      const r = getEtichetta(activeFonte.slice(3));
+      if (r) {
+        bar.innerHTML = `<span>${r.supporto.label}</span><span class="crumb-sep">›</span>
+          <span class="crumb-etichetta" style="color:var(--${r.etichetta.colore})">${r.etichetta.label}</span>`;
+        return;
+      }
+    }
+    const f = getSupporto(activeFonte);
+    if (f) bar.innerHTML = `<span>${f.label}</span>`;
   }
 
   // ─── FILTERS ────────────────────────────────────────────────────────────────
@@ -461,7 +669,7 @@
     const anno  = document.getElementById('filterAnno').value;
 
     filteredVoci = db.voci.filter(v => {
-      if (activeFonte !== 'all' && v.fonte !== activeFonte) return false;
+      if (!voceMatchesSelezione(v)) return false;
       if (stato && v.stato !== stato) return false;
       if (tipo  && v.tipo  !== tipo)  return false;
       if (anno  && v.anno  !== anno)  return false;
@@ -506,14 +714,14 @@
   // ─── STATO BADGE ────────────────────────────────────────────────────────────
   function isFonteCollegata(fonteId) {
     if (!isLocal) return false;
-    const f = db.fonti.find(f => f.id === fonteId);
+    const f = getSupporto(fonteId);
     return f && f.stato !== 'da-collegare' && f.stato !== 'da-svuotare';
   }
 
   function statoBadgeHTML(v) {
     const cls = `badge-stato-${v.stato || ''}`;
     if (!isLocal) return `<span class="badge ${cls}">${v.stato || '—'}</span>`;
-    const col   = isFonteCollegata(v.fonte);
+    const col    = isFonteCollegata(v.fonte);
     const frzCls = col ? '' : 'frozen';
     const title  = col ? 'Clicca per cambiare stato' : 'Fonte non collegata — sola lettura';
     return `<button class="stato-btn ${cls} ${frzCls}" title="${title}"
@@ -532,7 +740,6 @@
     e.stopPropagation();
     if (!collegata) return;
     document.querySelectorAll('.stato-dropdown').forEach(d => d.remove());
-
     const dropdown = document.createElement('div');
     dropdown.className = 'stato-dropdown';
     STATI_LIST.forEach(s => {
@@ -542,7 +749,6 @@
       if (s.val !== statoAtt) opt.onclick = ev => { ev.stopPropagation(); cambiaStato(voceId, s.val); dropdown.remove(); };
       dropdown.appendChild(opt);
     });
-
     const btn = e.currentTarget;
     btn.style.position = 'relative';
     btn.appendChild(dropdown);
@@ -552,8 +758,7 @@
   async function cambiaStato(voceId, nuovoStato) {
     try {
       const res  = await fetch('/api/update-stato', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ voce_id: voceId, stato: nuovoStato })
       });
       const json = await res.json();
@@ -568,12 +773,18 @@
   }
 
   // ─── TABLE ──────────────────────────────────────────────────────────────────
+  function etichettaBadgeHTML(eId) {
+    const colore = etichettaColore(eId);
+    const label  = etichettaLabel(eId);
+    return `<span class="badge badge-etichetta-${colore || 'none'}">${label}</span>`;
+  }
+
   function renderTable() {
     const tbody = document.getElementById('tableBody');
     const empty = document.getElementById('emptyState');
     if (filteredVoci.length === 0) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
     empty.style.display = 'none';
-    const fonteMap = Object.fromEntries(db.fonti.map(f => [f.id, f.label]));
+
     tbody.innerHTML = filteredVoci.map(v => `
       <tr>
         <td>
@@ -583,15 +794,9 @@
         <td>${v.anno || '—'}</td>
         <td><span class="badge badge-tipo">${v.tipo || '—'}</span></td>
         <td>${statoBadgeHTML(v)}</td>
-        <td class="cell-fonte" title="${fonteMap[v.fonte]||v.fonte}">${labelShort(v.fonte)}</td>
+        <td>${etichettaBadgeHTML(v.etichetta)}</td>
         <td><div class="cell-percorso" title="${v.percorso}">${v.percorso || '—'}</div></td>
       </tr>`).join('');
-  }
-
-  function labelShort(id) {
-    const f = db.fonti.find(f => f.id === id);
-    if (!f) return id;
-    return f.label.length > 22 ? f.label.slice(0,20) + '…' : f.label;
   }
 
   // ─── TREE ───────────────────────────────────────────────────────────────────
@@ -599,7 +804,7 @@
     return name.replace(/^\d{3}_/, '').replace(/_/g, ' ');
   }
 
-  function buildTree(voci) {
+  function buildFolderTree(voci) {
     const root = { children: {}, items: [] };
     voci.forEach(v => {
       const parts = (v.percorso || '').split('/').filter(Boolean);
@@ -623,28 +828,26 @@
     return n;
   }
 
-  function renderTreeNode(node, depth) {
+  function renderFolderNode(node, depth, prefixId) {
     let html = '';
-    const indent    = depth * 20;
-    const showFonte = activeFonte === 'all';
+    const indent = depth * 20;
 
     Object.keys(node.children).sort((a,b) => a.localeCompare(b)).forEach(key => {
       const child  = node.children[key];
       const total  = countItems(child);
-      const nodeId = 'tn-' + child.path.replace(/[^a-z0-9]/gi, '-');
+      const nodeId = prefixId + '-tn-' + child.path.replace(/[^a-z0-9]/gi, '-');
       const isOpen = expandedNodes.has(nodeId);
-      const icon   = depth === 0 ? '🗂' : '📁';
 
       html += `
         <div>
           <div class="tree-folder-row" style="padding-left:${12 + indent}px" onclick="toggleTreeNode('${nodeId}')">
-            <span class="tree-arrow">${isOpen ? '▼' : '▶'}</span>
-            <span class="tree-folder-icon">${icon}</span>
+            <span class="tree-arrow ${isOpen ? 'open' : ''}">▶</span>
+            <span class="tree-folder-icon">${depth === 0 ? '🗂' : '📁'}</span>
             <span class="tree-folder-name">${cleanName(key)}</span>
             <span class="tree-folder-count">${total}</span>
           </div>
           <div class="tree-children ${isOpen ? 'open' : ''}" id="${nodeId}">
-            ${renderTreeNode(child, depth + 1)}
+            ${renderFolderNode(child, depth + 1, prefixId)}
           </div>
         </div>`;
     });
@@ -653,9 +856,8 @@
       html += `
         <div class="tree-leaf-row" style="padding-left:${12 + indent + 20}px">
           <span class="tree-leaf-icon">📄</span>
-          <span class="tree-leaf-title">${v.titolo || cleanName(v.percorso.split('/').pop())}</span>
+          <span class="tree-leaf-title">${v.titolo || cleanName((v.percorso||'').split('/').pop())}</span>
           ${(v.tags||[]).length ? `<span class="tree-leaf-tags">${v.tags.slice(0,3).join(' · ')}</span>` : ''}
-          ${showFonte ? `<span class="tree-fonte-chip">${labelShort(v.fonte)}</span>` : ''}
           <span style="margin-left:4px">${statoBadgeHTML(v)}</span>
           <span class="badge badge-tipo" style="margin-left:4px">${v.tipo || '—'}</span>
         </div>`;
@@ -664,12 +866,58 @@
     return html;
   }
 
+  // Raggruppa voci per etichetta e costruisce l'albero con etichetta come primo livello
   function renderTree() {
     const wrap  = document.getElementById('treeWrap');
     const empty = document.getElementById('emptyState');
     if (filteredVoci.length === 0) { wrap.innerHTML = ''; empty.style.display = 'block'; return; }
     empty.style.display = 'none';
-    wrap.innerHTML = renderTreeNode(buildTree(filteredVoci), 0);
+
+    // Se siamo già filtrati su una singola etichetta: mostra solo la struttura cartelle
+    if (activeFonte.startsWith('et:')) {
+      const folderTree = buildFolderTree(filteredVoci);
+      wrap.innerHTML = renderFolderNode(folderTree, 0, 'et');
+      return;
+    }
+
+    // Raggruppa per etichetta
+    const ETICHETTE_ORDER = [];
+    db.fonti.forEach(f => (f.etichette || []).forEach(e => ETICHETTE_ORDER.push(e.id)));
+    ETICHETTE_ORDER.push(null); // Non classificato
+
+    const byEtichetta = new Map();
+    filteredVoci.forEach(v => {
+      const k = v.etichetta || null;
+      if (!byEtichetta.has(k)) byEtichetta.set(k, []);
+      byEtichetta.get(k).push(v);
+    });
+
+    let html = '';
+    ETICHETTE_ORDER.forEach(eId => {
+      const vociEt = byEtichetta.get(eId);
+      if (!vociEt || vociEt.length === 0) return;
+
+      const label  = etichettaLabel(eId);
+      const colore = etichettaColore(eId);
+      const nodeId = 'et-root-' + (eId || 'none');
+      const isOpen = expandedNodes.has(nodeId);
+      const folderTree = buildFolderTree(vociEt);
+
+      html += `
+        <div style="margin-bottom:6px">
+          <div class="tree-etichetta-row et-${colore}" onclick="toggleTreeNode('${nodeId}')">
+            <span class="tree-arrow ${isOpen ? 'open' : ''}">▶</span>
+            <span class="etichetta-dot dot-${colore}" style="width:12px;height:12px"></span>
+            <span class="tree-folder-name" style="font-size:14px">${label}</span>
+            <span class="tree-folder-count">${vociEt.length}</span>
+          </div>
+          <div class="tree-children ${isOpen ? 'open' : ''}" id="${nodeId}">
+            ${renderFolderNode(folderTree, 0, eId || 'none')}
+          </div>
+        </div>`;
+    });
+
+    wrap.innerHTML = html;
   }
 
   function toggleTreeNode(nodeId) {
@@ -678,12 +926,13 @@
     const isOpen = el.classList.toggle('open');
     if (isOpen) expandedNodes.add(nodeId); else expandedNodes.delete(nodeId);
     const row = el.previousElementSibling;
-    if (row) { const a = row.querySelector('.tree-arrow'); if (a) a.textContent = isOpen ? '▼' : '▶'; }
+    if (row) { const a = row.querySelector('.tree-arrow'); if (a) a.classList.toggle('open', isOpen); }
   }
 
   // ─── STATS ──────────────────────────────────────────────────────────────────
   function renderStats() {
     const c = s => filteredVoci.filter(v => v.stato === s).length;
+    const fontiAttive = db.fonti.filter(f => f.stato !== 'da-collegare').length;
     document.getElementById('statsBar').innerHTML = `
       <div class="stat-card"><div class="num">${filteredVoci.length}</div><div class="lbl">Voci totali</div></div>
       <div class="stat-card"><div class="num" style="color:var(--ok)">${c('completo')}</div><div class="lbl">Completi</div></div>
@@ -695,16 +944,15 @@
 
   // ─── PENDENZE ───────────────────────────────────────────────────────────────
   function renderPendenze() {
-    const pendenze = db.voci.filter(v => v.stato === 'da-revisionare');
+    const pendenze = filteredVoci.filter(v => v.stato === 'da-revisionare');
     const section  = document.getElementById('pendenzeSection');
     if (pendenze.length === 0) { section.style.display = 'none'; return; }
     section.style.display = 'block';
-    const fonteMap = Object.fromEntries(db.fonti.map(f => [f.id, f.label]));
     document.getElementById('pendenzeList').innerHTML = pendenze.map(v => `
       <div class="pendenza-item">
         <div>
           <div class="p-title">${v.titolo}</div>
-          <div class="p-meta">${fonteMap[v.fonte]||v.fonte} › ${v.percorso}</div>
+          <div class="p-meta">${etichettaLabel(v.etichetta)} › ${v.percorso}</div>
         </div>
         <span class="badge badge-tipo">${v.tipo}</span>
       </div>`).join('');
@@ -720,21 +968,61 @@
   }
 
   // ─── MODAL ──────────────────────────────────────────────────────────────────
-  function openModal()  { document.getElementById('modal').classList.add('open'); }
+  function openModal() {
+    // Popola la select dei supporti per il tab etichetta
+    const sel = document.getElementById('m-supporto-sel');
+    sel.innerHTML = db.fonti.map(f => `<option value="${f.id}">${f.label}</option>`).join('');
+    document.getElementById('modal').classList.add('open');
+  }
   function closeModal() { document.getElementById('modal').classList.remove('open'); }
   document.getElementById('modal').addEventListener('click', e => { if (e.target === document.getElementById('modal')) closeModal(); });
 
-  function aggiungiFornte() {
-    const id = document.getElementById('m-id').value.trim();
+  function switchModalTab(tab) {
+    currentModalTab = tab;
+    document.querySelectorAll('.modal-tab').forEach((el, i) => el.classList.toggle('active', (i===0 && tab==='supporto') || (i===1 && tab==='etichetta')));
+    document.getElementById('panel-supporto').classList.toggle('active', tab === 'supporto');
+    document.getElementById('panel-etichetta').classList.toggle('active', tab === 'etichetta');
+  }
+
+  function aggiungi() {
+    if (currentModalTab === 'supporto') aggiungiSupporto();
+    else aggiungiEtichetta();
+  }
+
+  function aggiungiSupporto() {
     const label = document.getElementById('m-label').value.trim();
     const tipo  = document.getElementById('m-tipo').value;
     const note  = document.getElementById('m-note').value.trim();
-    if (!id || !label) { alert('ID e Etichetta sono obbligatori.'); return; }
-    if (db.fonti.find(f => f.id === id)) { alert('ID già esistente.'); return; }
-    db.fonti.push({ id, label, tipo, stato: 'da-collegare', note });
+    if (!label) { alert('Il nome del supporto è obbligatorio.'); return; }
+    // Genera id: lowercase, solo alfanumerici e trattini
+    const id = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    if (db.fonti.find(f => f.id === id)) { alert('Esiste già un supporto con ID "' + id + '". Scegli un nome diverso.'); return; }
+    db.fonti.push({ id, label, tipo, stato: 'da-collegare', note, etichette: [] });
     closeModal();
-    ['m-id','m-label','m-note'].forEach(i => document.getElementById(i).value = '');
+    ['m-label','m-note'].forEach(i => document.getElementById(i).value = '');
     renderSidebar(); renderStats();
+    showToast('✓ Supporto "' + label + '" aggiunto', 'ok');
+  }
+
+  function aggiungiEtichetta() {
+    const fId    = document.getElementById('m-supporto-sel').value;
+    const label  = document.getElementById('m-et-label').value.trim();
+    const colore = document.getElementById('m-et-colore').value;
+    const path   = document.getElementById('m-et-percorso').value.trim();
+    const desc   = document.getElementById('m-et-desc').value.trim();
+    if (!label) { alert('Il nome dell\'etichetta è obbligatorio.'); return; }
+    const supporto = db.fonti.find(f => f.id === fId);
+    if (!supporto) return;
+    const eId = fId + '-' + colore + '-' + Date.now();
+    const nuovaEt = { id: eId, label, colore, descrizione: desc, percorso_radice: path || null, stato: path ? 'attivo' : 'da-collegare' };
+    if (!supporto.etichette) supporto.etichette = [];
+    supporto.etichette.push(nuovaEt);
+    if (path) supporto.stato = 'parziale';
+    closeModal();
+    ['m-et-label','m-et-percorso','m-et-desc'].forEach(i => document.getElementById(i).value = '');
+    expandedSupporti.add(fId);
+    renderSidebar(); renderStats();
+    showToast('✓ Etichetta "' + label + '" aggiunta a ' + supporto.label, 'ok');
   }
 
   // ─── EXPORT ─────────────────────────────────────────────────────────────────
