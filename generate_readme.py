@@ -208,10 +208,21 @@ def main():
     if not api_key:
         env_file = SCRIPT_DIR / '.env'
         if env_file.exists():
-            for line in env_file.read_text().splitlines():
-                if line.startswith('ANTHROPIC_API_KEY='):
-                    api_key = line.split('=', 1)[1].strip().strip('"\'')
-                    break
+            for enc in ('utf-8-sig', 'utf-16', 'utf-8', 'latin-1'):
+                try:
+                    text = env_file.read_text(encoding=enc)
+                    # rimuove spazi tra caratteri (artefatto UTF-16)
+                    if ' A N T H R O P I C' in text:
+                        text = text.replace(' ', '')
+                    for line in text.splitlines():
+                        line = line.strip()
+                        if line.startswith('ANTHROPIC_API_KEY='):
+                            api_key = line.split('=', 1)[1].strip().strip('"\'')
+                            break
+                    if api_key:
+                        break
+                except Exception:
+                    continue
 
     if not api_key and not args.dry_run:
         print("[ERRORE] ANTHROPIC_API_KEY non trovata.")
