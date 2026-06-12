@@ -34,7 +34,7 @@ def rclone_lsjson(remote: str, max_depth: int = 6) -> list[dict]:
     cmd = ["rclone", "lsjson", "--recursive", "--fast-list",
            f"--max-depth={max_depth}", remote]
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', timeout=120)
         if result.returncode != 0:
             print(f"  [ERRORE rclone] {result.stderr.strip()}")
             return []
@@ -50,7 +50,7 @@ def rclone_cat(remote_path: str) -> str | None:
     """Scarica il contenuto testuale di un file remoto."""
     cmd = ["rclone", "cat", remote_path]
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', timeout=30)
         if result.returncode == 0:
             return result.stdout
     except Exception:
@@ -93,15 +93,16 @@ def scan_gdrive_remote(remote_name: str, fonte_id: str, max_depth: int = 6) -> l
         if not e.get("IsDir") and e["Name"].lower() == "readme.md"
     }
 
-    # Trova le cartelle con prefisso numerico
-    cartelle_numeriche = [
+    # Su Google Drive non si usa il prefisso ###_ — includi tutte le cartelle
+    # (escludi solo quelle che iniziano con _ per coerenza col protocollo)
+    cartelle = [
         e for e in entries
-        if e.get("IsDir") and RE_NUM_PREFIX.match(Path(e["Path"]).name)
+        if e.get("IsDir")
         and not Path(e["Path"]).name.startswith("_")
     ]
 
     voci = []
-    for cartella in cartelle_numeriche:
+    for cartella in cartelle:
         cart_path = cartella["Path"]
         cart_name = Path(cart_path).name
         readme_rel = f"{cart_path}/README.md"
@@ -162,7 +163,7 @@ def scan_gdrive_remote(remote_name: str, fonte_id: str, max_depth: int = 6) -> l
 
         voci.append(voce)
 
-    print(f"  📊 Trovate {len(voci)} cartelle su {remote}")
+    print(f"  📊 Trovate {len(voci)} cartelle su {remote} (su {len(entries)} elementi totali)")
     return voci
 
 def update_data_json(fonte_id: str, nuove_voci: list[dict], dry_run: bool = False):
