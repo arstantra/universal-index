@@ -48,27 +48,26 @@
     aside h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--text2); margin-bottom: 12px; padding: 0 4px; }
     .fonte-item {
       display: flex; align-items: center; gap: 10px;
-      padding: 8px 10px; border-radius: var(--radius);
-      cursor: pointer; transition: background .15s; margin-bottom: 4px;
-      border: 1px solid transparent;
+      padding: 8px 10px; border-radius: var(--radius); cursor: pointer;
+      transition: background .1s; margin-bottom: 2px;
     }
     .fonte-item:hover { background: var(--surface2); }
-    .fonte-item.active { background: var(--surface2); border-color: var(--accent); }
-    .fonte-item.all { border-color: var(--border); }
+    .fonte-item.active { background: var(--surface2); }
     .fonte-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
     .fonte-name { flex: 1; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .fonte-count { font-size: 11px; color: var(--text2); flex-shrink: 0; }
-    .fonte-stato { font-size: 10px; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; }
-    .fonte-stato.collegata { background: #0d3326; color: var(--ok); }
-    .fonte-stato.da-collegare { background: #2a2300; color: var(--warn); }
-    .fonte-stato.da-svuotare { background: #2a1200; color: var(--da-svuotare); }
+    .fonte-count { font-size: 11px; color: var(--text2); background: var(--surface2); padding: 2px 7px; border-radius: 10px; }
+    .fonte-stato {
+      font-size: 10px; padding: 2px 6px; border-radius: 4px; white-space: nowrap; font-weight: 500;
+    }
+    .fonte-stato.collegato    { background: #0d3326; color: var(--ok); }
+    .fonte-stato.da-collegare { background: #1e1e2e; color: var(--text2); }
+    .fonte-stato.da-svuotare  { background: #2a1200; color: var(--da-svuotare); }
 
     /* tipo dot colors */
     .dot-locale  { background: var(--accent); }
     .dot-gdrive  { background: var(--ok); }
     .dot-dropbox { background: #6c86c4; }
 
-    .sidebar-section { margin-top: 24px; }
     .add-fonte-btn {
       width: 100%; padding: 8px; border-radius: var(--radius);
       background: transparent; border: 1px dashed var(--border);
@@ -76,6 +75,14 @@
       transition: all .15s; margin-top: 8px;
     }
     .add-fonte-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* LOCAL SERVER BADGE */
+    #localBadge {
+      display: none;
+      font-size: 11px; padding: 3px 10px; border-radius: 10px;
+      background: #0d3326; color: var(--ok); border: 1px solid #1a5c3a;
+      margin-top: 10px; text-align: center;
+    }
 
     /* MAIN */
     main { padding: 24px 32px; overflow-y: auto; }
@@ -105,6 +112,18 @@
     }
     select:focus { border-color: var(--accent); }
 
+    /* VIEW TOGGLE */
+    .view-toggle {
+      display: flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; flex-shrink: 0;
+    }
+    .view-toggle button {
+      padding: 8px 14px; background: transparent; border: none; color: var(--text2);
+      cursor: pointer; font-size: 12px; font-weight: 500; transition: all .15s; white-space: nowrap;
+    }
+    .view-toggle button:hover { background: var(--surface2); color: var(--text); }
+    .view-toggle button.active { background: var(--surface2); color: var(--accent); }
+    .view-toggle button:first-child { border-right: 1px solid var(--border); }
+
     /* TABLE */
     .table-wrap { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; }
@@ -132,6 +151,75 @@
     .badge-stato-archivio-morto { background: #1e1e1e; color: #888; }
     .badge-tipo { background: var(--surface2); color: var(--text2); }
 
+    /* STATO BUTTON (locale only) */
+    .stato-btn {
+      display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500;
+      white-space: nowrap; cursor: pointer; border: none; position: relative;
+      transition: opacity .15s, transform .1s;
+    }
+    .stato-btn:hover:not(.frozen) { opacity: .8; transform: scale(1.05); }
+    .stato-btn.frozen { cursor: not-allowed; opacity: .5; }
+
+    .stato-dropdown {
+      position: absolute; top: calc(100% + 4px); left: 0; z-index: 50;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      box-shadow: 0 8px 24px rgba(0,0,0,.5); min-width: 170px; padding: 4px;
+    }
+    .stato-dropdown-opt {
+      padding: 7px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;
+      transition: background .1s; display: flex; align-items: center; gap: 8px;
+    }
+    .stato-dropdown-opt:hover { background: var(--surface2); }
+    .stato-dropdown-opt.current { opacity: .35; cursor: default; pointer-events: none; }
+    .dot-opt { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .dot-completo       { background: var(--ok); }
+    .dot-in-lavorazione { background: #6aadff; }
+    .dot-da-revisionare { background: var(--warn); }
+    .dot-archivio-morto { background: #888; }
+
+    /* TOAST */
+    #toast {
+      position: fixed; bottom: 24px; right: 24px; z-index: 200;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 12px 18px; font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,.4);
+      transform: translateY(80px); opacity: 0; transition: all .25s;
+      max-width: 320px; pointer-events: none;
+    }
+    #toast.show { transform: translateY(0); opacity: 1; }
+    #toast.ok   { border-left: 3px solid var(--ok); }
+    #toast.warn { border-left: 3px solid var(--warn); }
+    #toast.err  { border-left: 3px solid var(--err); }
+
+    /* ── TREE VIEW ─────────────────────────────────────────────────────────── */
+    .tree-wrap { display: none; }
+
+    .tree-folder-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 12px; cursor: pointer; border-radius: var(--radius);
+      transition: background .1s; user-select: none;
+    }
+    .tree-folder-row:hover { background: var(--surface2); }
+    .tree-arrow { font-size: 9px; color: var(--text2); width: 12px; text-align: center; flex-shrink: 0; }
+    .tree-folder-icon { font-size: 14px; flex-shrink: 0; }
+    .tree-folder-name { font-size: 13px; font-weight: 500; flex: 1; }
+    .tree-folder-count {
+      font-size: 11px; color: var(--text2); background: var(--surface2);
+      padding: 1px 7px; border-radius: 10px; flex-shrink: 0;
+    }
+    .tree-children { display: none; }
+    .tree-children.open { display: block; }
+
+    .tree-leaf-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 12px; border-radius: var(--radius);
+      transition: background .1s;
+    }
+    .tree-leaf-row:hover { background: var(--surface2); }
+    .tree-leaf-icon  { font-size: 13px; flex-shrink: 0; color: var(--text2); }
+    .tree-leaf-title { font-size: 13px; flex: 1; }
+    .tree-leaf-tags  { font-size: 11px; color: var(--text2); max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tree-fonte-chip { font-size: 10px; color: var(--text2); background: var(--surface2); padding: 1px 6px; border-radius: 4px; flex-shrink: 0; }
+
     /* EMPTY STATE */
     .empty { text-align: center; padding: 60px 20px; color: var(--text2); }
     .empty .icon { font-size: 48px; margin-bottom: 12px; }
@@ -148,7 +236,7 @@
     .pendenza-item .p-title { font-size: 13px; font-weight: 500; }
     .pendenza-item .p-meta  { font-size: 11px; color: var(--text2); margin-top: 2px; }
 
-    /* MODAL aggiunge fonte */
+    /* MODAL */
     .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 100; align-items: center; justify-content: center; }
     .overlay.open { display: flex; }
     .modal {
@@ -167,7 +255,6 @@
     .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
     .btn-ghost:hover { border-color: var(--text2); }
 
-    /* RESPONSIVE */
     @media (max-width: 768px) {
       .app { grid-template-columns: 1fr; }
       aside { border-right: none; border-bottom: 1px solid var(--border); max-height: 220px; }
@@ -190,18 +277,15 @@
 
 <div class="app">
 
-  <!-- SIDEBAR fonti -->
   <aside>
     <h2>Fonti</h2>
     <div id="fonteList"></div>
+    <div id="localBadge">● server locale attivo</div>
   </aside>
 
-  <!-- MAIN content -->
   <main>
-    <!-- STATS -->
     <div class="stats" id="statsBar"></div>
 
-    <!-- TOOLBAR -->
     <div class="toolbar">
       <div class="search-wrap">
         <span class="search-icon">🔍</span>
@@ -225,10 +309,14 @@
       <select id="filterAnno" onchange="applyFilters()">
         <option value="">Tutti gli anni</option>
       </select>
+      <div class="view-toggle">
+        <button id="btnLista"  class="active" onclick="switchView('lista')">☰ Lista</button>
+        <button id="btnAlbero"            onclick="switchView('albero')">🌲 Albero</button>
+      </div>
     </div>
 
-    <!-- TABLE -->
-    <div class="table-wrap">
+    <!-- Vista lista -->
+    <div class="table-wrap" id="tableWrap">
       <table>
         <thead>
           <tr>
@@ -243,12 +331,15 @@
         <tbody id="tableBody"></tbody>
       </table>
     </div>
+
+    <!-- Vista albero -->
+    <div class="tree-wrap" id="treeWrap"></div>
+
     <div id="emptyState" class="empty" style="display:none;">
       <div class="icon">📂</div>
       <div>Nessuna voce trovata con i filtri attivi.</div>
     </div>
 
-    <!-- PENDENZE -->
     <div class="pendenze-section" id="pendenzeSection" style="display:none;">
       <h2>⚠ Pendenze da revisionare</h2>
       <div class="pendenza-list" id="pendenzeList"></div>
@@ -288,12 +379,20 @@
   </div>
 </div>
 
+<!-- TOAST -->
+<div id="toast"></div>
+
 <script>
   let db = { meta: {}, fonti: [], voci: [] };
   let filteredVoci = [];
-  let activeFonte = 'all';
-  let sortKey = 'anno';
-  let sortDir = -1; // -1 = desc
+  let activeFonte  = 'all';
+  let sortKey      = 'anno';
+  let sortDir      = -1;
+  let currentView  = 'lista';
+  let expandedNodes = new Set();
+
+  const isLocal = (location.protocol === 'http:') &&
+    (location.hostname === 'localhost' || location.hostname === '127.0.0.1');
 
   // ─── LOAD ───────────────────────────────────────────────────────────────────
   async function loadData() {
@@ -301,10 +400,9 @@
       const r = await fetch('data.json');
       db = await r.json();
     } catch(e) {
-      // fallback demo se non trova data.json
       db = {
-        meta: { lastUpdated: '—', description: 'Demo (data.json non trovato)' },
-        fonti: [{ id:'demo', label:'Demo fonte', tipo:'locale', stato:'da-collegare', note:'' }],
+        meta: { lastUpdated: '—' },
+        fonti: [{ id:'demo', label:'Demo', tipo:'locale', stato:'da-collegare', note:'' }],
         voci: []
       };
     }
@@ -312,8 +410,8 @@
   }
 
   function init() {
-    document.getElementById('lastUpdated').textContent =
-      'Aggiornato: ' + (db.meta.lastUpdated || '—');
+    document.getElementById('lastUpdated').textContent = 'Aggiornato: ' + (db.meta.lastUpdated || '—');
+    if (isLocal) document.getElementById('localBadge').style.display = 'block';
     renderSidebar();
     populateAnnoFilter();
     applyFilters();
@@ -322,42 +420,37 @@
   // ─── SIDEBAR ────────────────────────────────────────────────────────────────
   function renderSidebar() {
     const container = document.getElementById('fonteList');
-    const countAll = db.voci.length;
+    const countAll  = db.voci.length;
     container.innerHTML = `
-      <div class="fonte-item all active" data-id="all" onclick="selectFonte('all')">
+      <div class="fonte-item active" data-id="all" onclick="selectFonte('all')">
         <div class="fonte-dot" style="background:#4f7cff"></div>
         <div class="fonte-name">Tutte le fonti</div>
         <div class="fonte-count">${countAll}</div>
       </div>`;
-
     db.fonti.forEach(f => {
       const count = db.voci.filter(v => v.fonte === f.id).length;
-      const dotClass = 'dot-' + f.tipo;
       const statoClass = f.stato.replace(/\s/g,'-');
       container.innerHTML += `
         <div class="fonte-item" data-id="${f.id}" onclick="selectFonte('${f.id}')">
-          <div class="fonte-dot ${dotClass}"></div>
+          <div class="fonte-dot dot-${f.tipo}"></div>
           <div class="fonte-name" title="${f.label}">${f.label}</div>
           <span class="fonte-stato ${statoClass}">${f.stato}</span>
           <div class="fonte-count">${count}</div>
         </div>`;
     });
-
     container.innerHTML += `<button class="add-fonte-btn" onclick="openModal()">＋ Nuova fonte</button>`;
   }
 
   function selectFonte(id) {
     activeFonte = id;
-    document.querySelectorAll('.fonte-item').forEach(el => {
-      el.classList.toggle('active', el.dataset.id === id);
-    });
+    document.querySelectorAll('.fonte-item').forEach(el => el.classList.toggle('active', el.dataset.id === id));
     applyFilters();
   }
 
   // ─── FILTERS ────────────────────────────────────────────────────────────────
   function populateAnnoFilter() {
     const anni = [...new Set(db.voci.map(v => v.anno).filter(Boolean))].sort().reverse();
-    const sel = document.getElementById('filterAnno');
+    const sel  = document.getElementById('filterAnno');
     anni.forEach(a => { const o = document.createElement('option'); o.value = a; o.textContent = a; sel.appendChild(o); });
   }
 
@@ -380,43 +473,105 @@
     });
 
     sortData();
-    renderTable();
+    if (currentView === 'lista') renderTable();
+    else renderTree();
     renderStats();
     renderPendenze();
   }
 
+  // ─── VIEW TOGGLE ────────────────────────────────────────────────────────────
+  function switchView(v) {
+    currentView = v;
+    document.getElementById('btnLista').classList.toggle('active',  v === 'lista');
+    document.getElementById('btnAlbero').classList.toggle('active', v === 'albero');
+    document.getElementById('tableWrap').style.display = v === 'lista'  ? 'block' : 'none';
+    document.getElementById('treeWrap').style.display  = v === 'albero' ? 'block' : 'none';
+    if (v === 'lista') renderTable(); else renderTree();
+  }
+
   // ─── SORT ───────────────────────────────────────────────────────────────────
   function sortBy(key) {
-    if (sortKey === key) sortDir *= -1;
-    else { sortKey = key; sortDir = 1; }
+    if (sortKey === key) sortDir *= -1; else { sortKey = key; sortDir = 1; }
     document.querySelectorAll('.sort-arrow').forEach(el => el.textContent = '↕');
     document.querySelectorAll('thead th').forEach(el => el.classList.remove('sorted'));
     const th = document.querySelector(`[onclick="sortBy('${key}')"]`);
-    if (th) {
-      th.classList.add('sorted');
-      th.querySelector('.sort-arrow').textContent = sortDir === 1 ? '↑' : '↓';
-    }
-    sortData();
-    renderTable();
+    if (th) { th.classList.add('sorted'); th.querySelector('.sort-arrow').textContent = sortDir === 1 ? '↑' : '↓'; }
+    sortData(); renderTable();
   }
 
   function sortData() {
-    filteredVoci.sort((a, b) => {
-      const av = (a[sortKey] || '').toString();
-      const bv = (b[sortKey] || '').toString();
-      return av.localeCompare(bv) * sortDir;
+    filteredVoci.sort((a,b) => (a[sortKey]||'').toString().localeCompare((b[sortKey]||'').toString()) * sortDir);
+  }
+
+  // ─── STATO BADGE ────────────────────────────────────────────────────────────
+  function isFonteCollegata(fonteId) {
+    if (!isLocal) return false;
+    const f = db.fonti.find(f => f.id === fonteId);
+    return f && f.stato !== 'da-collegare' && f.stato !== 'da-svuotare';
+  }
+
+  function statoBadgeHTML(v) {
+    const cls = `badge-stato-${v.stato || ''}`;
+    if (!isLocal) return `<span class="badge ${cls}">${v.stato || '—'}</span>`;
+    const col   = isFonteCollegata(v.fonte);
+    const frzCls = col ? '' : 'frozen';
+    const title  = col ? 'Clicca per cambiare stato' : 'Fonte non collegata — sola lettura';
+    return `<button class="stato-btn ${cls} ${frzCls}" title="${title}"
+      onclick="onStatoClick(event,'${v.id}','${v.stato}',${col})"
+    >${v.stato || '—'}</button>`;
+  }
+
+  const STATI_LIST = [
+    { val: 'completo',        label: 'Completo' },
+    { val: 'in-lavorazione',  label: 'In lavorazione' },
+    { val: 'da-revisionare',  label: 'Da revisionare' },
+    { val: 'archivio-morto',  label: 'Archivio morto' },
+  ];
+
+  function onStatoClick(e, voceId, statoAtt, collegata) {
+    e.stopPropagation();
+    if (!collegata) return;
+    document.querySelectorAll('.stato-dropdown').forEach(d => d.remove());
+
+    const dropdown = document.createElement('div');
+    dropdown.className = 'stato-dropdown';
+    STATI_LIST.forEach(s => {
+      const opt = document.createElement('div');
+      opt.className = 'stato-dropdown-opt' + (s.val === statoAtt ? ' current' : '');
+      opt.innerHTML = `<span class="dot-opt dot-${s.val}"></span>${s.label}`;
+      if (s.val !== statoAtt) opt.onclick = ev => { ev.stopPropagation(); cambiaStato(voceId, s.val); dropdown.remove(); };
+      dropdown.appendChild(opt);
     });
+
+    const btn = e.currentTarget;
+    btn.style.position = 'relative';
+    btn.appendChild(dropdown);
+    setTimeout(() => document.addEventListener('click', function h() { dropdown.remove(); document.removeEventListener('click', h); }), 0);
+  }
+
+  async function cambiaStato(voceId, nuovoStato) {
+    try {
+      const res  = await fetch('/api/update-stato', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ voce_id: voceId, stato: nuovoStato })
+      });
+      const json = await res.json();
+      if (!json.ok) { showToast('⚠ ' + (json.error || 'Errore'), 'err'); return; }
+      const voce = db.voci.find(v => v.id === voceId);
+      if (voce) voce.stato = nuovoStato;
+      applyFilters();
+      showToast(json.readme_updated ? '✓ Stato salvato — README.md aggiornato' : '⚠ data.json OK, README non trovato', json.readme_updated ? 'ok' : 'warn');
+    } catch {
+      showToast('✗ Server non raggiungibile', 'err');
+    }
   }
 
   // ─── TABLE ──────────────────────────────────────────────────────────────────
   function renderTable() {
     const tbody = document.getElementById('tableBody');
     const empty = document.getElementById('emptyState');
-    if (filteredVoci.length === 0) {
-      tbody.innerHTML = '';
-      empty.style.display = 'block';
-      return;
-    }
+    if (filteredVoci.length === 0) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
     empty.style.display = 'none';
     const fonteMap = Object.fromEntries(db.fonti.map(f => [f.id, f.label]));
     tbody.innerHTML = filteredVoci.map(v => `
@@ -427,7 +582,7 @@
         </td>
         <td>${v.anno || '—'}</td>
         <td><span class="badge badge-tipo">${v.tipo || '—'}</span></td>
-        <td><span class="badge badge-stato-${v.stato || ''}">${v.stato || '—'}</span></td>
+        <td>${statoBadgeHTML(v)}</td>
         <td class="cell-fonte" title="${fonteMap[v.fonte]||v.fonte}">${labelShort(v.fonte)}</td>
         <td><div class="cell-percorso" title="${v.percorso}">${v.percorso || '—'}</div></td>
       </tr>`).join('');
@@ -436,34 +591,116 @@
   function labelShort(id) {
     const f = db.fonti.find(f => f.id === id);
     if (!f) return id;
-    // abbrevia l'etichetta
-    return f.label.length > 22 ? f.label.slice(0, 20) + '…' : f.label;
+    return f.label.length > 22 ? f.label.slice(0,20) + '…' : f.label;
+  }
+
+  // ─── TREE ───────────────────────────────────────────────────────────────────
+  function cleanName(name) {
+    return name.replace(/^\d{3}_/, '').replace(/_/g, ' ');
+  }
+
+  function buildTree(voci) {
+    const root = { children: {}, items: [] };
+    voci.forEach(v => {
+      const parts = (v.percorso || '').split('/').filter(Boolean);
+      if (!parts.length) { root.items.push(v); return; }
+      let node = root;
+      for (let i = 0; i < parts.length - 1; i++) {
+        const p = parts[i];
+        if (!node.children[p]) node.children[p] = { name: p, path: parts.slice(0,i+1).join('/'), children: {}, items: [] };
+        node = node.children[p];
+      }
+      const last = parts[parts.length - 1];
+      if (!node.children[last]) node.children[last] = { name: last, path: parts.join('/'), children: {}, items: [] };
+      node.children[last].items.push(v);
+    });
+    return root;
+  }
+
+  function countItems(node) {
+    let n = node.items.length;
+    Object.values(node.children).forEach(c => n += countItems(c));
+    return n;
+  }
+
+  function renderTreeNode(node, depth) {
+    let html = '';
+    const indent    = depth * 20;
+    const showFonte = activeFonte === 'all';
+
+    Object.keys(node.children).sort((a,b) => a.localeCompare(b)).forEach(key => {
+      const child  = node.children[key];
+      const total  = countItems(child);
+      const nodeId = 'tn-' + child.path.replace(/[^a-z0-9]/gi, '-');
+      const isOpen = expandedNodes.has(nodeId);
+      const icon   = depth === 0 ? '🗂' : '📁';
+
+      html += `
+        <div>
+          <div class="tree-folder-row" style="padding-left:${12 + indent}px" onclick="toggleTreeNode('${nodeId}')">
+            <span class="tree-arrow">${isOpen ? '▼' : '▶'}</span>
+            <span class="tree-folder-icon">${icon}</span>
+            <span class="tree-folder-name">${cleanName(key)}</span>
+            <span class="tree-folder-count">${total}</span>
+          </div>
+          <div class="tree-children ${isOpen ? 'open' : ''}" id="${nodeId}">
+            ${renderTreeNode(child, depth + 1)}
+          </div>
+        </div>`;
+    });
+
+    node.items.forEach(v => {
+      html += `
+        <div class="tree-leaf-row" style="padding-left:${12 + indent + 20}px">
+          <span class="tree-leaf-icon">📄</span>
+          <span class="tree-leaf-title">${v.titolo || cleanName(v.percorso.split('/').pop())}</span>
+          ${(v.tags||[]).length ? `<span class="tree-leaf-tags">${v.tags.slice(0,3).join(' · ')}</span>` : ''}
+          ${showFonte ? `<span class="tree-fonte-chip">${labelShort(v.fonte)}</span>` : ''}
+          <span style="margin-left:4px">${statoBadgeHTML(v)}</span>
+          <span class="badge badge-tipo" style="margin-left:4px">${v.tipo || '—'}</span>
+        </div>`;
+    });
+
+    return html;
+  }
+
+  function renderTree() {
+    const wrap  = document.getElementById('treeWrap');
+    const empty = document.getElementById('emptyState');
+    if (filteredVoci.length === 0) { wrap.innerHTML = ''; empty.style.display = 'block'; return; }
+    empty.style.display = 'none';
+    wrap.innerHTML = renderTreeNode(buildTree(filteredVoci), 0);
+  }
+
+  function toggleTreeNode(nodeId) {
+    const el = document.getElementById(nodeId);
+    if (!el) return;
+    const isOpen = el.classList.toggle('open');
+    if (isOpen) expandedNodes.add(nodeId); else expandedNodes.delete(nodeId);
+    const row = el.previousElementSibling;
+    if (row) { const a = row.querySelector('.tree-arrow'); if (a) a.textContent = isOpen ? '▼' : '▶'; }
   }
 
   // ─── STATS ──────────────────────────────────────────────────────────────────
   function renderStats() {
-    const completi    = filteredVoci.filter(v => v.stato === 'completo').length;
-    const lavorazione = filteredVoci.filter(v => v.stato === 'in-lavorazione').length;
-    const pendenti    = filteredVoci.filter(v => v.stato === 'da-revisionare').length;
-    const morti       = filteredVoci.filter(v => v.stato === 'archivio-morto').length;
+    const c = s => filteredVoci.filter(v => v.stato === s).length;
     document.getElementById('statsBar').innerHTML = `
       <div class="stat-card"><div class="num">${filteredVoci.length}</div><div class="lbl">Voci totali</div></div>
-      <div class="stat-card"><div class="num" style="color:var(--ok)">${completi}</div><div class="lbl">Completi</div></div>
-      <div class="stat-card"><div class="num" style="color:#6aadff">${lavorazione}</div><div class="lbl">In lavorazione</div></div>
-      <div class="stat-card"><div class="num" style="color:var(--warn)">${pendenti}</div><div class="lbl">Da revisionare</div></div>
-      <div class="stat-card"><div class="num" style="color:#888">${morti}</div><div class="lbl">Archivio morto</div></div>
+      <div class="stat-card"><div class="num" style="color:var(--ok)">${c('completo')}</div><div class="lbl">Completi</div></div>
+      <div class="stat-card"><div class="num" style="color:#6aadff">${c('in-lavorazione')}</div><div class="lbl">In lavorazione</div></div>
+      <div class="stat-card"><div class="num" style="color:var(--warn)">${c('da-revisionare')}</div><div class="lbl">Da revisionare</div></div>
+      <div class="stat-card"><div class="num" style="color:#888">${c('archivio-morto')}</div><div class="lbl">Archivio morto</div></div>
       <div class="stat-card"><div class="num" style="color:var(--accent2)">${db.fonti.length}</div><div class="lbl">Fonti registrate</div></div>`;
   }
 
   // ─── PENDENZE ───────────────────────────────────────────────────────────────
   function renderPendenze() {
     const pendenze = db.voci.filter(v => v.stato === 'da-revisionare');
-    const section = document.getElementById('pendenzeSection');
-    const list    = document.getElementById('pendenzeList');
+    const section  = document.getElementById('pendenzeSection');
     if (pendenze.length === 0) { section.style.display = 'none'; return; }
     section.style.display = 'block';
     const fonteMap = Object.fromEntries(db.fonti.map(f => [f.id, f.label]));
-    list.innerHTML = pendenze.map(v => `
+    document.getElementById('pendenzeList').innerHTML = pendenze.map(v => `
       <div class="pendenza-item">
         <div>
           <div class="p-title">${v.titolo}</div>
@@ -473,12 +710,22 @@
       </div>`).join('');
   }
 
-  // ─── MODAL AGGIUNGI FONTE ───────────────────────────────────────────────────
+  // ─── TOAST ──────────────────────────────────────────────────────────────────
+  let toastTimer;
+  function showToast(msg, type = 'ok') {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.className = `show ${type}`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.className = '', 3200);
+  }
+
+  // ─── MODAL ──────────────────────────────────────────────────────────────────
   function openModal()  { document.getElementById('modal').classList.add('open'); }
   function closeModal() { document.getElementById('modal').classList.remove('open'); }
+  document.getElementById('modal').addEventListener('click', e => { if (e.target === document.getElementById('modal')) closeModal(); });
 
   function aggiungiFornte() {
-    const id    = document.getElementById('m-id').value.trim();
+    const id = document.getElementById('m-id').value.trim();
     const label = document.getElementById('m-label').value.trim();
     const tipo  = document.getElementById('m-tipo').value;
     const note  = document.getElementById('m-note').value.trim();
@@ -486,26 +733,18 @@
     if (db.fonti.find(f => f.id === id)) { alert('ID già esistente.'); return; }
     db.fonti.push({ id, label, tipo, stato: 'da-collegare', note });
     closeModal();
-    document.getElementById('m-id').value = '';
-    document.getElementById('m-label').value = '';
-    document.getElementById('m-note').value = '';
-    renderSidebar();
-    renderStats();
+    ['m-id','m-label','m-note'].forEach(i => document.getElementById(i).value = '');
+    renderSidebar(); renderStats();
   }
 
   // ─── EXPORT ─────────────────────────────────────────────────────────────────
   function exportJSON() {
-    const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'data.json';
+    const a = Object.assign(document.createElement('a'), {
+      href: URL.createObjectURL(new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' })),
+      download: 'data.json'
+    });
     a.click();
   }
-
-  // ─── CLOSE MODAL ON OVERLAY CLICK ──────────────────────────────────────────
-  document.getElementById('modal').addEventListener('click', function(e) {
-    if (e.target === this) closeModal();
-  });
 
   loadData();
 </script>
