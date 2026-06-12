@@ -1,0 +1,38 @@
+{
+  "meta": {
+    "version": "1.0",
+    "lastUpdated": "2026-06-12",
+    "description": "Universal Index — Archivio Personale Andrea Poletti"
+  },
+  "fonti": [
+    { "id": "msi",           "label": "Computer MSI",                              "tipo": "locale",  "stato": "da-collegare", "note": "" },
+    { "id": "dell",          "label": "Computer Dell",                             "tipo": "locale",  "stato": "da-collegare", "note": "" },
+    { "id": "ssd1",          "label": "SSD 1",                                     "tipo": "locale",  "stato": "da-collegare", "note": "" },
+    { "id": "ssd2",          "label": "SSD 2",                                     "tipo": "locale",  "stato": "da-collegare", "note": "" },
+    { "id": "gdrive-gmail",  "label": "G-Drive unoaventi@gmail.com",               "tipo": "gdrive",  "stato": "da-collegare", "note": "" },
+    { "id": "gdrive-andipol","label": "G-Drive andipolinternational@gmail.com",    "tipo": "gdrive",  "stato": "da-collegare", "note": "" },
+    { "id": "gdrive-unoav",  "label": "G-Drive andrea.poletti@unoaventi.it",       "tipo": "gdrive",  "stato": "da-collegare", "note": "workspace amministrato" },
+    { "id": "gdrive-nddeu",  "label": "G-Drive andrea.poletti@nuovadidattica.eu",  "tipo": "gdrive",  "stato": "da-collegare", "note": "workspace amministrato" },
+    { "id": "gdrive-unife",  "label": "G-Drive pltndr@unife.it",                  "tipo": "gdrive",  "stato": "da-collegare", "note": "workspace gestito da Unife" },
+    { "id": "gdrive-dossi",  "label": "G-Drive andrea.poletti@aledossi.istruzioneer.it", "tipo": "gdrive", "stato": "da-svuotare", "note": "workspace gestito dall'istituto, da svuotare" },
+    { "id": "dropbox1",      "label": "Dropbox 1",                                 "tipo": "dropbox", "stato": "da-collegare", "note": "" },
+    { "id": "dropbox2",      "label": "Dropbox 2",                                 "tipo": "dropbox", "stato": "da-collegare", "note": "" }
+  ],
+  "voci": [
+    {
+      "id": "esempio-001",
+      "fonte": "ssd1",
+      "percorso": "2024/010_NomeProgetto",
+      "titolo": "Esempio Progetto",
+      "anno": "2024",
+      "tipo": "progetto",
+      "stato": "completo",
+      "disciplina": "architettura",
+      "contesto": "professionale",
+      "lingua": "it",
+      "tags": ["esempio", "template"],
+      "output": "output/relazione.pdf",
+      "note": "Voce di esempio — sostituire con dati reali"
+    }
+  ]
+}

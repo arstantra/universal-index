@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Universal Index — Archivio Personale</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --border: #2e3250;
+      --accent: #4f7cff;
+      --accent2: #7c4fff;
+      --text: #e8eaf6;
+      --text2: #8b92c4;
+      --ok: #3ecf8e;
+      --warn: #f0b429;
+      --err: #ff5c5c;
+      --da-svuotare: #ff7043;
+      --radius: 8px;
+      --font: 'Segoe UI', system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; min-height: 100vh; }
+
+    /* HEADER */
+    header {
+      background: linear-gradient(135deg, var(--surface) 0%, #1e2140 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 20px 32px;
+      display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    }
+    header h1 { font-size: 20px; font-weight: 700; letter-spacing: .02em; }
+    header h1 span { color: var(--accent); }
+    #lastUpdated { color: var(--text2); font-size: 12px; }
+
+    /* LAYOUT */
+    .app { display: grid; grid-template-columns: 260px 1fr; min-height: calc(100vh - 65px); }
+
+    /* SIDEBAR */
+    aside {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 20px 16px;
+      overflow-y: auto;
+    }
+    aside h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--text2); margin-bottom: 12px; padding: 0 4px; }
+    .fonte-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 10px; border-radius: var(--radius);
+      cursor: pointer; transition: background .15s; margin-bottom: 4px;
+      border: 1px solid transparent;
+    }
+    .fonte-item:hover { background: var(--surface2); }
+    .fonte-item.active { background: var(--surface2); border-color: var(--accent); }
+    .fonte-item.all { border-color: var(--border); }
+    .fonte-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .fonte-name { flex: 1; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .fonte-count { font-size: 11px; color: var(--text2); flex-shrink: 0; }
+    .fonte-stato { font-size: 10px; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; }
+    .fonte-stato.collegata { background: #0d3326; color: var(--ok); }
+    .fonte-stato.da-collegare { background: #2a2300; color: var(--warn); }
+    .fonte-stato.da-svuotare { background: #2a1200; color: var(--da-svuotare); }
+
+    /* tipo dot colors */
+    .dot-locale  { background: var(--accent); }
+    .dot-gdrive  { background: var(--ok); }
+    .dot-dropbox { background: #6c86c4; }
+
+    .sidebar-section { margin-top: 24px; }
+    .add-fonte-btn {
+      width: 100%; padding: 8px; border-radius: var(--radius);
+      background: transparent; border: 1px dashed var(--border);
+      color: var(--text2); cursor: pointer; font-size: 12px;
+      transition: all .15s; margin-top: 8px;
+    }
+    .add-fonte-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* MAIN */
+    main { padding: 24px 32px; overflow-y: auto; }
+
+    /* STATS BAR */
+    .stats { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px 20px; flex: 1; min-width: 120px;
+    }
+    .stat-card .num { font-size: 28px; font-weight: 700; color: var(--accent); }
+    .stat-card .lbl { font-size: 11px; color: var(--text2); margin-top: 2px; text-transform: uppercase; letter-spacing: .05em; }
+
+    /* TOOLBAR */
+    .toolbar { display: flex; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; align-items: center; }
+    .search-wrap { position: relative; flex: 1; min-width: 200px; }
+    .search-wrap input {
+      width: 100%; padding: 9px 14px 9px 36px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      color: var(--text); font-size: 13px; outline: none; transition: border .15s;
+    }
+    .search-wrap input:focus { border-color: var(--accent); }
+    .search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text2); font-size: 14px; pointer-events: none; }
+    select {
+      padding: 9px 12px; background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text); font-size: 13px; outline: none; cursor: pointer;
+    }
+    select:focus { border-color: var(--accent); }
+
+    /* TABLE */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      text-align: left; padding: 10px 14px;
+      font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+      color: var(--text2); border-bottom: 1px solid var(--border);
+      cursor: pointer; user-select: none; white-space: nowrap;
+    }
+    thead th:hover { color: var(--text); }
+    thead th .sort-arrow { margin-left: 4px; opacity: .4; }
+    thead th.sorted .sort-arrow { opacity: 1; color: var(--accent); }
+    tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; cursor: default; }
+    tbody tr:hover { background: var(--surface2); }
+    tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
+    .cell-titolo { font-weight: 500; max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cell-percorso { color: var(--text2); font-size: 11px; font-family: monospace; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cell-fonte { font-size: 12px; }
+
+    /* BADGES */
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+    .badge-stato-completo       { background: #0d3326; color: var(--ok); }
+    .badge-stato-in-lavorazione { background: #1a2a45; color: #6aadff; }
+    .badge-stato-da-revisionare { background: #2a2300; color: var(--warn); }
+    .badge-stato-archivio-morto { background: #1e1e1e; color: #888; }
+    .badge-tipo { background: var(--surface2); color: var(--text2); }
+
+    /* EMPTY STATE */
+    .empty { text-align: center; padding: 60px 20px; color: var(--text2); }
+    .empty .icon { font-size: 48px; margin-bottom: 12px; }
+
+    /* PENDENZE PANEL */
+    .pendenze-section { margin-top: 32px; }
+    .pendenze-section h2 { font-size: 14px; font-weight: 600; color: var(--warn); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .pendenza-list { display: flex; flex-direction: column; gap: 8px; }
+    .pendenza-item {
+      background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--warn);
+      border-radius: var(--radius); padding: 10px 14px;
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    }
+    .pendenza-item .p-title { font-size: 13px; font-weight: 500; }
+    .pendenza-item .p-meta  { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+    /* MODAL aggiunge fonte */
+    .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 100; align-items: center; justify-content: center; }
+    .overlay.open { display: flex; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 28px; width: 420px; max-width: 95vw;
+    }
+    .modal h3 { font-size: 16px; margin-bottom: 20px; }
+    .form-row { margin-bottom: 14px; }
+    .form-row label { display: block; font-size: 11px; color: var(--text2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .05em; }
+    .form-row input, .form-row select { width: 100%; padding: 9px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 13px; outline: none; }
+    .form-row input:focus, .form-row select:focus { border-color: var(--accent); }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+    .btn { padding: 9px 18px; border-radius: var(--radius); font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: opacity .15s; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { opacity: .85; }
+    .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn-ghost:hover { border-color: var(--text2); }
+
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+      .app { grid-template-columns: 1fr; }
+      aside { border-right: none; border-bottom: 1px solid var(--border); max-height: 220px; }
+      main { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Universal <span>Index</span></h1>
+    <div id="lastUpdated">Caricamento...</div>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;">
+    <button class="btn btn-ghost" onclick="exportJSON()">⬇ Esporta JSON</button>
+    <button class="btn btn-primary" onclick="openModal()">＋ Aggiungi Fonte</button>
+  </div>
+</header>
+
+<div class="app">
+
+  <!-- SIDEBAR fonti -->
+  <aside>
+    <h2>Fonti</h2>
+    <div id="fonteList"></div>
+  </aside>
+
+  <!-- MAIN content -->
+  <main>
+    <!-- STATS -->
+    <div class="stats" id="statsBar"></div>
+
+    <!-- TOOLBAR -->
+    <div class="toolbar">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input id="searchInput" type="text" placeholder="Cerca per titolo, percorso, tag..." oninput="applyFilters()" />
+      </div>
+      <select id="filterStato" onchange="applyFilters()">
+        <option value="">Tutti gli stati</option>
+        <option value="completo">Completo</option>
+        <option value="in-lavorazione">In lavorazione</option>
+        <option value="da-revisionare">Da revisionare</option>
+        <option value="archivio-morto">Archivio morto</option>
+      </select>
+      <select id="filterTipo" onchange="applyFilters()">
+        <option value="">Tutti i tipi</option>
+        <option value="progetto">Progetto</option>
+        <option value="relazione">Relazione</option>
+        <option value="convegno">Convegno</option>
+        <option value="appunti">Appunti</option>
+        <option value="portfolio">Portfolio</option>
+      </select>
+      <select id="filterAnno" onchange="applyFilters()">
+        <option value="">Tutti gli anni</option>
+      </select>
+    </div>
+
+    <!-- TABLE -->
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortBy('titolo')">Titolo <span class="sort-arrow" id="arrow-titolo">↕</span></th>
+            <th onclick="sortBy('anno')">Anno <span class="sort-arrow" id="arrow-anno">↕</span></th>
+            <th onclick="sortBy('tipo')">Tipo <span class="sort-arrow" id="arrow-tipo">↕</span></th>
+            <th onclick="sortBy('stato')">Stato <span class="sort-arrow" id="arrow-stato">↕</span></th>
+            <th onclick="sortBy('fonte')">Fonte <span class="sort-arrow" id="arrow-fonte">↕</span></th>
+            <th>Percorso</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+    <div id="emptyState" class="empty" style="display:none;">
+      <div class="icon">📂</div>
+      <div>Nessuna voce trovata con i filtri attivi.</div>
+    </div>
+
+    <!-- PENDENZE -->
+    <div class="pendenze-section" id="pendenzeSection" style="display:none;">
+      <h2>⚠ Pendenze da revisionare</h2>
+      <div class="pendenza-list" id="pendenzeList"></div>
+    </div>
+  </main>
+</div>
+
+<!-- MODAL aggiungi fonte -->
+<div class="overlay" id="modal">
+  <div class="modal">
+    <h3>➕ Aggiungi Fonte</h3>
+    <div class="form-row">
+      <label>ID univoco (es. ssd3)</label>
+      <input id="m-id" type="text" placeholder="ssd3" />
+    </div>
+    <div class="form-row">
+      <label>Etichetta leggibile</label>
+      <input id="m-label" type="text" placeholder="SSD 3 — Samsung T7" />
+    </div>
+    <div class="form-row">
+      <label>Tipo</label>
+      <select id="m-tipo">
+        <option value="locale">Locale (HD/SSD/computer)</option>
+        <option value="gdrive">Google Drive</option>
+        <option value="dropbox">Dropbox</option>
+        <option value="altro">Altro</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>Note</label>
+      <input id="m-note" type="text" placeholder="opzionale" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Annulla</button>
+      <button class="btn btn-primary" onclick="aggiungiFornte()">Aggiungi</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let db = { meta: {}, fonti: [], voci: [] };
+  let filteredVoci = [];
+  let activeFonte = 'all';
+  let sortKey = 'anno';
+  let sortDir = -1; // -1 = desc
+
+  // ─── LOAD ───────────────────────────────────────────────────────────────────
+  async function loadData() {
+    try {
+      const r = await fetch('data.json');
+      db = await r.json();
+    } catch(e) {
+      // fallback demo se non trova data.json
+      db = {
+        meta: { lastUpdated: '—', description: 'Demo (data.json non trovato)' },
+        fonti: [{ id:'demo', label:'Demo fonte', tipo:'locale', stato:'da-collegare', note:'' }],
+        voci: []
+      };
+    }
+    init();
+  }
+
+  function init() {
+    document.getElementById('lastUpdated').textContent =
+      'Aggiornato: ' + (db.meta.lastUpdated || '—');
+    renderSidebar();
+    populateAnnoFilter();
+    applyFilters();
+  }
+
+  // ─── SIDEBAR ────────────────────────────────────────────────────────────────
+  function renderSidebar() {
+    const container = document.getElementById('fonteList');
+    const countAll = db.voci.length;
+    container.innerHTML = `
+      <div class="fonte-item all active" data-id="all" onclick="selectFonte('all')">
+        <div class="fonte-dot" style="background:#4f7cff"></div>
+        <div class="fonte-name">Tutte le fonti</div>
+        <div class="fonte-count">${countAll}</div>
+      </div>`;
+
+    db.fonti.forEach(f => {
+      const count = db.voci.filter(v => v.fonte === f.id).length;
+      const dotClass = 'dot-' + f.tipo;
+      const statoClass = f.stato.replace(/\s/g,'-');
+      container.innerHTML += `
+        <div class="fonte-item" data-id="${f.id}" onclick="selectFonte('${f.id}')">
+          <div class="fonte-dot ${dotClass}"></div>
+          <div class="fonte-name" title="${f.label}">${f.label}</div>
+          <span class="fonte-stato ${statoClass}">${f.stato}</span>
+          <div class="fonte-count">${count}</div>
+        </div>`;
+    });
+
+    container.innerHTML += `<button class="add-fonte-btn" onclick="openModal()">＋ Nuova fonte</button>`;
+  }
+
+  function selectFonte(id) {
+    activeFonte = id;
+    document.querySelectorAll('.fonte-item').forEach(el => {
+      el.classList.toggle('active', el.dataset.id === id);
+    });
+    applyFilters();
+  }
+
+  // ─── FILTERS ────────────────────────────────────────────────────────────────
+  function populateAnnoFilter() {
+    const anni = [...new Set(db.voci.map(v => v.anno).filter(Boolean))].sort().reverse();
+    const sel = document.getElementById('filterAnno');
+    anni.forEach(a => { const o = document.createElement('option'); o.value = a; o.textContent = a; sel.appendChild(o); });
+  }
+
+  function applyFilters() {
+    const q     = document.getElementById('searchInput').value.toLowerCase();
+    const stato = document.getElementById('filterStato').value;
+    const tipo  = document.getElementById('filterTipo').value;
+    const anno  = document.getElementById('filterAnno').value;
+
+    filteredVoci = db.voci.filter(v => {
+      if (activeFonte !== 'all' && v.fonte !== activeFonte) return false;
+      if (stato && v.stato !== stato) return false;
+      if (tipo  && v.tipo  !== tipo)  return false;
+      if (anno  && v.anno  !== anno)  return false;
+      if (q) {
+        const hay = [v.titolo, v.percorso, ...(v.tags||[])].join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+
+    sortData();
+    renderTable();
+    renderStats();
+    renderPendenze();
+  }
+
+  // ─── SORT ───────────────────────────────────────────────────────────────────
+  function sortBy(key) {
+    if (sortKey === key) sortDir *= -1;
+    else { sortKey = key; sortDir = 1; }
+    document.querySelectorAll('.sort-arrow').forEach(el => el.textContent = '↕');
+    document.querySelectorAll('thead th').forEach(el => el.classList.remove('sorted'));
+    const th = document.querySelector(`[onclick="sortBy('${key}')"]`);
+    if (th) {
+      th.classList.add('sorted');
+      th.querySelector('.sort-arrow').textContent = sortDir === 1 ? '↑' : '↓';
+    }
+    sortData();
+    renderTable();
+  }
+
+  function sortData() {
+    filteredVoci.sort((a, b) => {
+      const av = (a[sortKey] || '').toString();
+      const bv = (b[sortKey] || '').toString();
+      return av.localeCompare(bv) * sortDir;
+    });
+  }
+
+  // ─── TABLE ──────────────────────────────────────────────────────────────────
+  function renderTable() {
+    const tbody = document.getElementById('tableBody');
+    const empty = document.getElementById('emptyState');
+    if (filteredVoci.length === 0) {
+      tbody.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+    const fonteMap = Object.fromEntries(db.fonti.map(f => [f.id, f.label]));
+    tbody.innerHTML = filteredVoci.map(v => `
+      <tr>
+        <td>
+          <div class="cell-titolo" title="${v.titolo}">${v.titolo || '—'}</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px;">${(v.tags||[]).join(' · ')}</div>
+        </td>
+        <td>${v.anno || '—'}</td>
+        <td><span class="badge badge-tipo">${v.tipo || '—'}</span></td>
+        <td><span class="badge badge-stato-${v.stato || ''}">${v.stato || '—'}</span></td>
+        <td class="cell-fonte" title="${fonteMap[v.fonte]||v.fonte}">${labelShort(v.fonte)}</td>
+        <td><div class="cell-percorso" title="${v.percorso}">${v.percorso || '—'}</div></td>
+      </tr>`).join('');
+  }
+
+  function labelShort(id) {
+    const f = db.fonti.find(f => f.id === id);
+    if (!f) return id;
+    // abbrevia l'etichetta
+    return f.label.length > 22 ? f.label.slice(0, 20) + '…' : f.label;
+  }
+
+  // ─── STATS ──────────────────────────────────────────────────────────────────
+  function renderStats() {
+    const completi    = filteredVoci.filter(v => v.stato === 'completo').length;
+    const lavorazione = filteredVoci.filter(v => v.stato === 'in-lavorazione').length;
+    const pendenti    = filteredVoci.filter(v => v.stato === 'da-revisionare').length;
+    const morti       = filteredVoci.filter(v => v.stato === 'archivio-morto').length;
+    document.getElementById('statsBar').innerHTML = `
+      <div class="stat-card"><div class="num">${filteredVoci.length}</div><div class="lbl">Voci totali</div></div>
+      <div class="stat-card"><div class="num" style="color:var(--ok)">${completi}</div><div class="lbl">Completi</div></div>
+      <div class="stat-card"><div class="num" style="color:#6aadff">${lavorazione}</div><div class="lbl">In lavorazione</div></div>
+      <div class="stat-card"><div class="num" style="color:var(--warn)">${pendenti}</div><div class="lbl">Da revisionare</div></div>
+      <div class="stat-card"><div class="num" style="color:#888">${morti}</div><div class="lbl">Archivio morto</div></div>
+      <div class="stat-card"><div class="num" style="color:var(--accent2)">${db.fonti.length}</div><div class="lbl">Fonti registrate</div></div>`;
+  }
+
+  // ─── PENDENZE ───────────────────────────────────────────────────────────────
+  function renderPendenze() {
+    const pendenze = db.voci.filter(v => v.stato === 'da-revisionare');
+    const section = document.getElementById('pendenzeSection');
+    const list    = document.getElementById('pendenzeList');
+    if (pendenze.length === 0) { section.style.display = 'none'; return; }
+    section.style.display = 'block';
+    const fonteMap = Object.fromEntries(db.fonti.map(f => [f.id, f.label]));
+    list.innerHTML = pendenze.map(v => `
+      <div class="pendenza-item">
+        <div>
+          <div class="p-title">${v.titolo}</div>
+          <div class="p-meta">${fonteMap[v.fonte]||v.fonte} › ${v.percorso}</div>
+        </div>
+        <span class="badge badge-tipo">${v.tipo}</span>
+      </div>`).join('');
+  }
+
+  // ─── MODAL AGGIUNGI FONTE ───────────────────────────────────────────────────
+  function openModal()  { document.getElementById('modal').classList.add('open'); }
+  function closeModal() { document.getElementById('modal').classList.remove('open'); }
+
+  function aggiungiFornte() {
+    const id    = document.getElementById('m-id').value.trim();
+    const label = document.getElementById('m-label').value.trim();
+    const tipo  = document.getElementById('m-tipo').value;
+    const note  = document.getElementById('m-note').value.trim();
+    if (!id || !label) { alert('ID e Etichetta sono obbligatori.'); return; }
+    if (db.fonti.find(f => f.id === id)) { alert('ID già esistente.'); return; }
+    db.fonti.push({ id, label, tipo, stato: 'da-collegare', note });
+    closeModal();
+    document.getElementById('m-id').value = '';
+    document.getElementById('m-label').value = '';
+    document.getElementById('m-note').value = '';
+    renderSidebar();
+    renderStats();
+  }
+
+  // ─── EXPORT ─────────────────────────────────────────────────────────────────
+  function exportJSON() {
+    const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'data.json';
+    a.click();
+  }
+
+  // ─── CLOSE MODAL ON OVERLAY CLICK ──────────────────────────────────────────
+  document.getElementById('modal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+
+  loadData();
+</script>
+</body>
+</html>
