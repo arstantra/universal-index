@@ -1,0 +1,14 @@
+{
+  "_istruzioni": "Aggiungi qui le cartelle da indicizzare. Puoi usare cartelle-anno specifiche o una root intera.",
+  "fonti": [
+    {
+      "id": "archivio-locale",
+      "etichetta": "Archivio Personale",
+      "tipo": "locale",
+      "cartelle": [
+        "C:/Users/unoav/OneDrive/Etichetta_Rossa"
+      ],
+      "note": "Modifica 'cartelle' aggiungendo o rimuovendo i percorsi che vuoi indicizzare"
+    }
+  ]
+}
