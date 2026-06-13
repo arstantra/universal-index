@@ -26,9 +26,14 @@ from pathlib import Path
 
 # ─── CONFIG ────────────────────────────────────────────────────────────────────
 
-SCRIPT_DIR   = Path(__file__).parent
-DATA_JSON    = SCRIPT_DIR / "data.json"
-SOURCES_JSON = SCRIPT_DIR / "sources.json"
+SCRIPT_DIR       = Path(__file__).parent
+DATA_JSON        = SCRIPT_DIR / "data.json"
+SOURCES_JSON     = SCRIPT_DIR / "sources.json"
+ASSETS_DIR       = SCRIPT_DIR.parent / "assets"
+CREDENTIALS_FILE = ASSETS_DIR / "credentials_drive.json"
+TOKEN_FILE       = ASSETS_DIR / "token_drive.json"
+DRIVE_FILE_ID    = "1kwPvWoNAXeEIn1mm8YaFlTtolR1w_ps-"
+DRIVE_SCOPES     = ["https://www.googleapis.com/auth/drive"]
 
 STATI_VALIDI      = {"completo", "in-lavorazione", "da-revisionare", "archivio-morto"}
 TIPI_VALIDI       = {"progetto", "relazione", "convegno", "appunti", "portfolio"}
@@ -233,6 +238,42 @@ def stampa_riepilogo(voci: list[dict], errori: list[dict]):
           f"Morti: {sum(1 for v in voci if v['stato']=='archivio-morto')} | "
           f"Errori: {len(errori)}")
 
+# ─── GOOGLE DRIVE UPLOAD ───────────────────────────────────────────────────────
+
+def upload_to_drive():
+    """Carica data.json su Google Drive (aggiorna file esistente, stesso ID)."""
+    try:
+        from google.oauth2.credentials import Credentials
+        from google_auth_oauthlib.flow import InstalledAppFlow
+        from google.auth.transport.requests import Request
+        from googleapiclient.discovery import build
+        from googleapiclient.http import MediaFileUpload
+    except ImportError:
+        print("\n  [DRIVE] Librerie mancanti. Esegui:")
+        print("  pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib")
+        return
+
+    if not CREDENTIALS_FILE.exists():
+        print(f"\n  [DRIVE] credentials_drive.json non trovato in {ASSETS_DIR}")
+        return
+
+    creds = None
+    if TOKEN_FILE.exists():
+        creds = Credentials.from_authorized_user_file(str(TOKEN_FILE), DRIVE_SCOPES)
+
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(str(CREDENTIALS_FILE), DRIVE_SCOPES)
+            creds = flow.run_local_server(port=0)
+        TOKEN_FILE.write_text(creds.to_json(), encoding='utf-8')
+
+    service = build("drive", "v3", credentials=creds)
+    media = MediaFileUpload(str(DATA_JSON), mimetype="application/json", resumable=False)
+    service.files().update(fileId=DRIVE_FILE_ID, media_body=media).execute()
+    print(f"\n  ☁️  data.json caricato su Google Drive.")
+
 # ─── MAIN ──────────────────────────────────────────────────────────────────────
 
 def main():
@@ -257,6 +298,9 @@ def main():
     else:
         # Modalità config: legge sources.json
         scan_da_config(dry_run=args.dry_run)
+
+    if not args.dry_run:
+        upload_to_drive()
 
 if __name__ == '__main__':
     try:
