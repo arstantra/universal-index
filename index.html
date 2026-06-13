@@ -221,7 +221,7 @@
     .dot-archivio-morto { background: #888; }
 
     /* ── TREE VIEW ─────────────────────────────────────────────────────────── */
-    .tree-wrap { display: none; }
+    .tree-wrap { display: block; }
 
     /* Livello 0: Etichetta */
     .tree-etichetta-row {
@@ -440,8 +440,8 @@
         <option value="">Tutti gli anni</option>
       </select>
       <div class="view-toggle">
-        <button id="btnLista"  class="active" onclick="switchView('lista')">☰ Lista</button>
-        <button id="btnAlbero"            onclick="switchView('albero')">🌲 Albero</button>
+        <button id="btnLista"              onclick="switchView('lista')">☰ Lista</button>
+        <button id="btnAlbero" class="active" onclick="switchView('albero')">🌲 Albero</button>
       </div>
     </div>
 
@@ -573,7 +573,7 @@
   let activeFonte    = 'all';   // 'all' | supporto id | 'etichetta:id'
   let sortKey        = 'anno';
   let sortDir        = -1;
-  let currentView    = 'lista';
+  let currentView    = 'albero';
   let expandedNodes  = new Set();
   let expandedSupporti = new Set();
   let currentModalTab = 'supporto';
