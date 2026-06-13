@@ -19,48 +19,8 @@
           "descrizione": "Progetti caldi in corso",
           "percorso_radice": "C:/Users/unoav/OneDrive/Etichetta_Rossa",
           "stato": "attivo"
-        },
-        {
-          "id": "msi-gialla",
-          "label": "Etichetta Gialla",
-          "colore": "gialla",
-          "descrizione": "Architettura e design",
-          "percorso_radice": null,
-          "stato": "da-collegare"
-        },
-        {
-          "id": "msi-blu",
-          "label": "Etichetta Blu",
-          "colore": "blu",
-          "descrizione": "Fotografie e video",
-          "percorso_radice": null,
-          "stato": "da-collegare"
         }
       ]
-    },
-    {
-      "id": "dell",
-      "label": "Computer Dell",
-      "tipo": "locale",
-      "stato": "da-collegare",
-      "note": "",
-      "etichette": []
-    },
-    {
-      "id": "ssd1",
-      "label": "SSD 1",
-      "tipo": "locale",
-      "stato": "da-collegare",
-      "note": "",
-      "etichette": []
-    },
-    {
-      "id": "ssd2",
-      "label": "SSD 2",
-      "tipo": "locale",
-      "stato": "da-collegare",
-      "note": "",
-      "etichette": []
     },
     {
       "id": "gdrive-gmail",
@@ -68,62 +28,6 @@
       "tipo": "gdrive",
       "stato": "attivo",
       "note": "rclone remote: drive-personale",
-      "etichette": []
-    },
-    {
-      "id": "gdrive-andipol",
-      "label": "G-Drive andipolinternational@gmail.com",
-      "tipo": "gdrive",
-      "stato": "da-collegare",
-      "note": "",
-      "etichette": []
-    },
-    {
-      "id": "gdrive-unoav",
-      "label": "G-Drive andrea.poletti@unoaventi.it",
-      "tipo": "gdrive",
-      "stato": "da-collegare",
-      "note": "workspace amministrato",
-      "etichette": []
-    },
-    {
-      "id": "gdrive-nddeu",
-      "label": "G-Drive andrea.poletti@nuovadidattica.eu",
-      "tipo": "gdrive",
-      "stato": "da-collegare",
-      "note": "workspace amministrato",
-      "etichette": []
-    },
-    {
-      "id": "gdrive-unife",
-      "label": "G-Drive pltndr@unife.it",
-      "tipo": "gdrive",
-      "stato": "da-collegare",
-      "note": "workspace gestito da Unife",
-      "etichette": []
-    },
-    {
-      "id": "gdrive-dossi",
-      "label": "G-Drive andrea.poletti@aledossi.istruzioneer.it",
-      "tipo": "gdrive",
-      "stato": "da-svuotare",
-      "note": "workspace gestito dall'istituto, da svuotare",
-      "etichette": []
-    },
-    {
-      "id": "dropbox1",
-      "label": "Dropbox 1",
-      "tipo": "dropbox",
-      "stato": "da-collegare",
-      "note": "",
-      "etichette": []
-    },
-    {
-      "id": "dropbox2",
-      "label": "Dropbox 2",
-      "tipo": "dropbox",
-      "stato": "da-collegare",
-      "note": "",
       "etichette": []
     }
   ],
