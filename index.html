@@ -584,7 +584,7 @@
   // ─── LOAD ───────────────────────────────────────────────────────────────────
   async function loadData() {
     try {
-      const r = await fetch('data.json');
+      const r = await fetch('https://script.google.com/macros/s/AKfycbxdsARp1UBp1vL-QMiq6oiXdMxrm9jpDox9dYV-whh1nogDuBBiD471LaqfjiWgOZTX/exec');
       db = await r.json();
     } catch(e) {
       db = { meta: { lastUpdated: '—' }, fonti: [], voci: [] };

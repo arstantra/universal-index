@@ -5,3 +5,5 @@ __pycache__/
 indice-universale.html
 indice-universale.json
 build-index.ps1
+data.json
+sources.json
