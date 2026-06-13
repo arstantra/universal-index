@@ -266,17 +266,77 @@
     .empty { text-align: center; padding: 60px 20px; color: var(--text2); }
     .empty .icon { font-size: 48px; margin-bottom: 12px; }
 
-    /* PENDENZE PANEL */
-    .pendenze-section { margin-top: 28px; }
-    .pendenze-section h2 { font-size: 14px; font-weight: 600; color: var(--warn); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-    .pendenza-list { display: flex; flex-direction: column; gap: 8px; }
-    .pendenza-item {
-      background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--warn);
-      border-radius: var(--radius); padding: 10px 14px;
-      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    /* FOCUS PANEL */
+    .focus-section { margin-top: 28px; }
+    .focus-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 900px) { .focus-grid { grid-template-columns: 1fr; } }
+    .focus-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px 16px;
     }
-    .pendenza-item .p-title { font-size: 13px; font-weight: 500; }
-    .pendenza-item .p-meta  { font-size: 11px; color: var(--text2); margin-top: 2px; }
+    .focus-attivo { border-top: 2px solid var(--accent); }
+    .focus-backlog { border-top: 2px solid var(--accent2); }
+    .focus-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+    .focus-label {
+      font-size: 10px; font-weight: 700; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--text2); flex: 1;
+    }
+    .focus-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .dot-attivo  { background: var(--accent); }
+    .dot-backlog { background: var(--accent2); }
+    .focus-nome-display {
+      font-size: 13px; font-weight: 600; color: var(--text);
+      padding: 5px 0; margin-bottom: 8px; min-height: 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .focus-nome-display.empty { color: #3a3f60; font-weight: 400; font-style: italic; font-size: 12px; }
+    .focus-azione-input {
+      width: 100%; background: transparent; border: none; border-bottom: 1px solid var(--border);
+      color: var(--ok); font-family: var(--font); font-size: 12px;
+      padding: 5px 0; outline: none; transition: border-color .15s;
+    }
+    .focus-azione-input:focus { border-bottom-color: var(--accent); }
+    .focus-azione-input::placeholder { color: #2a5a3e; }
+    .focus-azione-input:disabled { opacity: .3; cursor: not-allowed; }
+    .backlog-list { display: flex; flex-direction: column; gap: 5px; }
+    .backlog-item { display: flex; align-items: center; gap: 6px; }
+    .backlog-bullet { color: var(--accent2); font-size: 10px; flex-shrink: 0; }
+    .backlog-title {
+      flex: 1; font-size: 12px; color: var(--text);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .backlog-promote {
+      background: transparent; border: none; color: var(--accent);
+      cursor: pointer; font-size: 11px; padding: 1px 4px;
+      opacity: .35; transition: opacity .15s; flex-shrink: 0;
+    }
+    .backlog-promote:hover { opacity: 1; }
+    .backlog-del {
+      background: transparent; border: none; color: #3a3f60; cursor: pointer;
+      font-size: 14px; padding: 0 2px; transition: color .15s; line-height: 1; flex-shrink: 0;
+    }
+    .backlog-del:hover { color: var(--err); }
+
+    /* FOCUS ROW CONTROL */
+    .focus-row-btn {
+      background: transparent; border: 1px solid transparent; cursor: pointer;
+      font-size: 11px; padding: 2px 5px; border-radius: 4px;
+      color: var(--text2); opacity: .35; transition: all .15s;
+      line-height: 1; display: block; white-space: nowrap;
+    }
+    .focus-row-btn:hover { opacity: 1; border-color: var(--border); background: var(--surface2); }
+    .focus-row-btn.focus-row-attivo { color: var(--accent);  opacity: 1 !important; border-color: var(--accent); }
+    .focus-row-btn.focus-row-coda   { color: var(--accent2); opacity: 1 !important; border-color: var(--accent2); }
+    .focus-dropdown {
+      position: absolute; top: calc(100% + 4px); left: 0; z-index: 50;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      box-shadow: 0 8px 24px rgba(0,0,0,.5); min-width: 195px; padding: 4px;
+    }
+    .focus-dropdown-opt {
+      padding: 7px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;
+      transition: background .1s; white-space: nowrap;
+    }
+    .focus-dropdown-opt:hover { background: var(--surface2); }
 
     /* TOAST */
     #toast {
@@ -390,6 +450,7 @@
       <table>
         <thead>
           <tr>
+            <th style="width:48px;">Focus</th>
             <th onclick="sortBy('titolo')">Titolo <span class="sort-arrow" id="arrow-titolo">↕</span></th>
             <th onclick="sortBy('anno')">Anno <span class="sort-arrow" id="arrow-anno">↕</span></th>
             <th onclick="sortBy('tipo')">Tipo <span class="sort-arrow" id="arrow-tipo">↕</span></th>
@@ -410,9 +471,27 @@
       <div>Nessuna voce trovata con i filtri attivi.</div>
     </div>
 
-    <div class="pendenze-section" id="pendenzeSection" style="display:none;">
-      <h2>⚠ Pendenze da revisionare</h2>
-      <div class="pendenza-list" id="pendenzeList"></div>
+    <div class="focus-section" id="focusSection">
+      <div class="focus-grid">
+        <!-- PROGETTO ATTIVO -->
+        <div class="focus-card focus-attivo">
+          <div class="focus-header">
+            <span class="focus-dot dot-attivo"></span>
+            <span class="focus-label">Progetto attivo</span>
+          </div>
+          <div id="focusNomeDisplay" class="focus-nome-display empty">seleziona ▶ in tabella</div>
+          <input class="focus-azione-input" id="focusAzione" disabled placeholder="Prossima azione fisica..." oninput="saveFocusAzione()" />
+        </div>
+        <!-- IN CODA -->
+        <div class="focus-card focus-backlog">
+          <div class="focus-header">
+            <span class="focus-dot dot-backlog"></span>
+            <span class="focus-label">In coda</span>
+            <span id="codaCounter" style="font-size:11px;color:var(--text2);">0 / 5</span>
+          </div>
+          <div id="backlogList" class="backlog-list"></div>
+        </div>
+      </div>
     </div>
   </main>
 </div>
@@ -519,6 +598,7 @@
     renderSidebar();
     populateAnnoFilter();
     applyFilters();
+    renderFocusPanel();
   }
 
   // ─── HELPERS ────────────────────────────────────────────────────────────────
@@ -684,7 +764,6 @@
     if (currentView === 'lista') renderTable();
     else renderTree();
     renderStats();
-    renderPendenze();
   }
 
   // ─── VIEW TOGGLE ────────────────────────────────────────────────────────────
@@ -785,8 +864,19 @@
     if (filteredVoci.length === 0) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
     empty.style.display = 'none';
 
-    tbody.innerHTML = filteredVoci.map(v => `
+    tbody.innerHTML = filteredVoci.map(v => {
+      const foc    = v.focus || null;
+      const focCls = foc ? `focus-row-${foc}` : '';
+      const focIco = foc === 'attivo' ? '▶ attivo' : foc === 'coda' ? '· coda' : '○';
+      const focArg = foc ? `'${foc}'` : 'null';
+      return `
       <tr>
+        <td style="width:28px;text-align:center;">
+          <button class="focus-row-btn ${focCls}"
+            onclick="onFocusClick(event,'${v.id}',${focArg})"
+            title="${foc === 'attivo' ? 'Attivo' : foc === 'coda' ? 'In coda' : 'Aggiungi al focus'}"
+          >${focIco}</button>
+        </td>
         <td>
           <div class="cell-titolo" title="${v.titolo}">${v.titolo || '—'}</div>
           <div style="font-size:11px;color:var(--text2);margin-top:2px;">${(v.tags||[]).join(' · ')}</div>
@@ -796,7 +886,8 @@
         <td>${statoBadgeHTML(v)}</td>
         <td>${etichettaBadgeHTML(v.etichetta)}</td>
         <td><div class="cell-percorso" title="${v.percorso}">${v.percorso || '—'}</div></td>
-      </tr>`).join('');
+      </tr>`;
+    }).join('');
   }
 
   // ─── TREE ───────────────────────────────────────────────────────────────────
@@ -853,6 +944,10 @@
     });
 
     node.items.forEach(v => {
+      const foc    = v.focus || null;
+      const focCls = foc ? `focus-row-${foc}` : '';
+      const focIco = foc === 'attivo' ? '▶ attivo' : foc === 'coda' ? '· coda' : '○';
+      const focArg = foc ? `'${foc}'` : 'null';
       html += `
         <div class="tree-leaf-row" style="padding-left:${12 + indent + 20}px">
           <span class="tree-leaf-icon">📄</span>
@@ -860,6 +955,10 @@
           ${(v.tags||[]).length ? `<span class="tree-leaf-tags">${v.tags.slice(0,3).join(' · ')}</span>` : ''}
           <span style="margin-left:4px">${statoBadgeHTML(v)}</span>
           <span class="badge badge-tipo" style="margin-left:4px">${v.tipo || '—'}</span>
+          <button class="focus-row-btn ${focCls}" style="margin-left:6px"
+            onclick="onFocusClick(event,'${v.id}',${focArg})"
+            title="${foc === 'attivo' ? 'Attivo' : foc === 'coda' ? 'In coda' : 'Aggiungi al focus'}"
+          >${focIco}</button>
         </div>`;
     });
 
@@ -942,20 +1041,130 @@
       <div class="stat-card"><div class="num" style="color:var(--accent2)">${db.fonti.length}</div><div class="lbl">Fonti registrate</div></div>`;
   }
 
-  // ─── PENDENZE ───────────────────────────────────────────────────────────────
-  function renderPendenze() {
-    const pendenze = filteredVoci.filter(v => v.stato === 'da-revisionare');
-    const section  = document.getElementById('pendenzeSection');
-    if (pendenze.length === 0) { section.style.display = 'none'; return; }
-    section.style.display = 'block';
-    document.getElementById('pendenzeList').innerHTML = pendenze.map(v => `
-      <div class="pendenza-item">
-        <div>
-          <div class="p-title">${v.titolo}</div>
-          <div class="p-meta">${etichettaLabel(v.etichetta)} › ${v.percorso}</div>
-        </div>
-        <span class="badge badge-tipo">${v.tipo}</span>
-      </div>`).join('');
+  // ─── FOCUS / BACKLOG ────────────────────────────────────────────────────────
+  function renderFocusPanel() {
+    const attivo = db.voci.find(v => v.focus === 'attivo');
+    const coda   = db.voci.filter(v => v.focus === 'coda');
+
+    // Card attivo
+    const nomeEl   = document.getElementById('focusNomeDisplay');
+    const azioneEl = document.getElementById('focusAzione');
+    if (attivo) {
+      nomeEl.textContent = attivo.titolo;
+      nomeEl.classList.remove('empty');
+      azioneEl.value    = attivo.focus_azione || '';
+      azioneEl.disabled = !isLocal;
+    } else {
+      nomeEl.textContent = 'seleziona ▶ in tabella';
+      nomeEl.classList.add('empty');
+      azioneEl.value    = '';
+      azioneEl.disabled = true;
+    }
+
+    // Contatore coda
+    document.getElementById('codaCounter').textContent = `${coda.length} / 5`;
+
+    // Lista coda
+    const codaList = document.getElementById('backlogList');
+    if (coda.length === 0) {
+      codaList.innerHTML = '<div style="font-size:11px;color:#3a3f60;padding:4px 0;">Nessun progetto in coda</div>';
+    } else {
+      codaList.innerHTML = coda.map(v => `
+        <div class="backlog-item">
+          <span class="backlog-bullet">▸</span>
+          <span class="backlog-title" title="${v.titolo}">${v.titolo}</span>
+          ${isLocal ? `
+            <button class="backlog-promote" onclick="setFocus('${v.id}','attivo')" title="Promuovi ad attivo">▶</button>
+            <button class="backlog-del"     onclick="setFocus('${v.id}',null)"     title="Rimuovi dalla coda">×</button>
+          ` : ''}
+        </div>`).join('');
+    }
+  }
+
+  async function setFocus(voceId, nuovoFocus) {
+    if (!isLocal) { showToast('⚠ Modifica disponibile solo via server locale', 'warn'); return; }
+
+    const voce       = db.voci.find(v => v.id === voceId);
+    const attivoCorr = db.voci.find(v => v.focus === 'attivo' && v.id !== voceId);
+    const codaCorr   = db.voci.filter(v => v.focus === 'coda'   && v.id !== voceId);
+
+    // Validazione client-side
+    if (nuovoFocus === 'attivo' && attivoCorr && voce.focus !== 'coda' && codaCorr.length >= 5) {
+      showToast('⚠ Coda piena (5/5) — rimuovi un progetto prima', 'warn'); return;
+    }
+    if (nuovoFocus === 'coda' && codaCorr.length >= 5) {
+      showToast('⚠ Coda piena (5/5) — rimuovi un progetto prima', 'warn'); return;
+    }
+
+    try {
+      const res  = await fetch('/api/update-focus', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ voce_id: voceId, focus: nuovoFocus })
+      });
+      const json = await res.json();
+      if (!json.ok) { showToast('⚠ ' + json.error, 'err'); return; }
+
+      // Aggiorna db locale (sono riferimenti agli stessi oggetti)
+      if (nuovoFocus === 'attivo' && attivoCorr) { attivoCorr.focus = 'coda'; delete attivoCorr.focus_azione; }
+      if (voce) {
+        voce.focus = nuovoFocus;
+        if (nuovoFocus !== 'attivo') delete voce.focus_azione;
+      }
+
+      renderFocusPanel();
+      renderTable();
+      const msg = nuovoFocus === 'attivo' ? '▶ Progetto attivo' :
+                  nuovoFocus === 'coda'   ? '· Aggiunto alla coda' : '○ Rimosso dal focus';
+      showToast(msg, 'ok');
+    } catch {
+      showToast('✗ Server non raggiungibile', 'err');
+    }
+  }
+
+  function onFocusClick(e, voceId, statoAtt) {
+    e.stopPropagation();
+    if (!isLocal) return;
+    document.querySelectorAll('.focus-dropdown').forEach(d => d.remove());
+
+    const opts = [];
+    if (statoAtt !== 'attivo') opts.push({ val: 'attivo', label: '▶  Imposta come Attivo' });
+    if (statoAtt !== 'coda')   opts.push({ val: 'coda',   label: '·  Aggiungi alla Coda' });
+    if (statoAtt !== null)     opts.push({ val: null,      label: '○  Rimuovi dal Focus' });
+    if (!opts.length) return;
+
+    const dropdown = document.createElement('div');
+    dropdown.className = 'focus-dropdown';
+    opts.forEach(o => {
+      const div = document.createElement('div');
+      div.className = 'focus-dropdown-opt';
+      div.textContent = o.label;
+      div.onclick = ev => { ev.stopPropagation(); setFocus(voceId, o.val); dropdown.remove(); };
+      dropdown.appendChild(div);
+    });
+
+    const btn = e.currentTarget;
+    btn.style.position = 'relative';
+    btn.appendChild(dropdown);
+    setTimeout(() => document.addEventListener('click', function h() {
+      dropdown.remove(); document.removeEventListener('click', h);
+    }), 0);
+  }
+
+  let azioneTimer;
+  function saveFocusAzione() {
+    clearTimeout(azioneTimer);
+    azioneTimer = setTimeout(async () => {
+      const attivo = db.voci.find(v => v.focus === 'attivo');
+      if (!attivo || !isLocal) return;
+      const azione = document.getElementById('focusAzione').value;
+      attivo.focus_azione = azione;
+      try {
+        await fetch('/api/update-focus', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ voce_id: attivo.id, focus: 'attivo', focus_azione: azione })
+        });
+      } catch { /* silent */ }
+    }, 800);
   }
 
   // ─── TOAST ──────────────────────────────────────────────────────────────────

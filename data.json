@@ -216,7 +216,8 @@
         "architettura"
       ],
       "note": "",
-      "etichetta": "msi-rossa"
+      "etichetta": "msi-rossa",
+      "focus": "attivo"
     },
     {
       "id": "archivio-locale_Area_Istruzione_AA 2010 - 2011_000_Documenti amministrativi",
@@ -276,7 +277,8 @@
         "scuola-secondaria"
       ],
       "note": "",
-      "etichetta": "msi-rossa"
+      "etichetta": "msi-rossa",
+      "focus": "coda"
     },
     {
       "id": "archivio-locale_Area_Istruzione_AA 2010 - 2011_025_Guercino 3F",
@@ -695,7 +697,8 @@
         "documentazione-studente"
       ],
       "note": "",
-      "etichetta": "msi-rossa"
+      "etichetta": "msi-rossa",
+      "focus": "coda"
     },
     {
       "id": "archivio-locale_Area_Istruzione_AA 2017 - 2018_011_2E Shadi Walid",
@@ -1990,7 +1993,7 @@
       "titolo": "Laboratorio di Design - La Bussola dell'Autonomia Creativa",
       "anno": "2025",
       "tipo": "progetto",
-      "stato": "in-lavorazione",
+      "stato": "da-revisionare",
       "disciplina": "architettura",
       "contesto": "università",
       "lingua": "it",

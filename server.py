@@ -122,6 +122,72 @@ def update_stato():
 
     return jsonify(response)
 
+# ─── API: AGGIORNA FOCUS ──────────────────────────────────────────────────────
+
+MAX_CODA = 5
+
+@app.route("/api/update-focus", methods=["POST"])
+def update_focus():
+    data         = request.get_json(silent=True) or {}
+    voce_id      = data.get("voce_id", "").strip()
+    new_focus    = data.get("focus")          # "attivo" | "coda" | None
+    focus_azione = data.get("focus_azione")   # testo libero, solo per attivo
+
+    if not voce_id:
+        return jsonify({"ok": False, "error": "voce_id mancante"}), 400
+    if new_focus not in (None, "attivo", "coda"):
+        return jsonify({"ok": False, "error": f"Focus non valido: '{new_focus}'"}), 400
+
+    if not DATA_JSON.exists():
+        return jsonify({"ok": False, "error": "data.json non trovato"}), 500
+    db = json.loads(DATA_JSON.read_text(encoding="utf-8"))
+
+    voce = next((v for v in db.get("voci", []) if v.get("id") == voce_id), None)
+    if voce is None:
+        return jsonify({"ok": False, "error": f"Voce '{voce_id}' non trovata"}), 404
+
+    vecchio_focus = voce.get("focus")
+
+    if new_focus == "attivo":
+        old_attivo = next(
+            (v for v in db.get("voci", []) if v.get("focus") == "attivo" and v.get("id") != voce_id),
+            None
+        )
+        coda_count = sum(1 for v in db.get("voci", [])
+                         if v.get("focus") == "coda" and v.get("id") != voce_id)
+        # Se l'old_attivo deve scendere in coda, verifica che ci sia spazio
+        if old_attivo and vecchio_focus != "coda" and coda_count >= MAX_CODA:
+            return jsonify({
+                "ok": False,
+                "error": f"Coda piena ({MAX_CODA}/{MAX_CODA}) — rimuovi un progetto prima"
+            }), 400
+        if old_attivo:
+            old_attivo["focus"] = "coda"
+            old_attivo.pop("focus_azione", None)
+        voce["focus"] = "attivo"
+        if focus_azione is not None:
+            voce["focus_azione"] = focus_azione
+
+    elif new_focus == "coda":
+        coda_count = sum(1 for v in db.get("voci", [])
+                         if v.get("focus") == "coda" and v.get("id") != voce_id)
+        if coda_count >= MAX_CODA:
+            return jsonify({
+                "ok": False,
+                "error": f"Coda piena ({MAX_CODA}/{MAX_CODA}) — rimuovi un progetto prima"
+            }), 400
+        voce["focus"] = "coda"
+        voce.pop("focus_azione", None)
+
+    else:  # None — rimuovi dal focus
+        voce["focus"] = None
+        voce.pop("focus_azione", None)
+
+    db["meta"]["lastUpdated"] = date.today().isoformat()
+    DATA_JSON.write_text(json.dumps(db, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    return jsonify({"ok": True, "vecchio_focus": vecchio_focus, "nuovo_focus": new_focus})
+
 # ─── HELPERS ──────────────────────────────────────────────────────────────────
 
 def _find_readme(voce: dict) -> Path | None:
