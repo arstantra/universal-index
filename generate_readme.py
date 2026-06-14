@@ -37,7 +37,7 @@ Schema frontmatter obbligatorio (rispetta esattamente questi campi e valori):
 ---
 titolo: "Titolo leggibile ricavato dal contenuto"
 anno: YYYY
-tipo: progetto | relazione | convegno | appunti | portfolio
+tipo: progetto | relazione | convegno | appunti | portfolio | archivio
 stato: completo | in-lavorazione | da-revisionare | archivio-morto
 tags: [tag1, tag2, tag3]
 output: output/file.pdf
@@ -148,7 +148,16 @@ Produci SOLO il contenuto del README.md, iniziando con ---"""
         messages=[{"role": "user", "content": user_msg}]
     )
 
-    return message.content[0].text.strip()
+    testo = message.content[0].text.strip()
+
+    # Fix: rimuove wrapper ```yaml ... ``` che Claude a volte aggiunge
+    # Caso 1: ---\n```yaml\n---\n...  →  ---\n...
+    testo = re.sub(r'^(---\s*\n)```ya?ml\s*\n---\s*\n', r'---\n', testo)
+    # Caso 2: blocco ```yaml standalone che wrappa tutto
+    testo = re.sub(r'^```ya?ml\s*\n', '', testo)
+    testo = re.sub(r'\n```\s*$', '', testo)
+
+    return testo
 
 # ─── TROVA CARTELLE TARGET ─────────────────────────────────────────────────────
 

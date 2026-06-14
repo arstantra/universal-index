@@ -36,7 +36,7 @@ DRIVE_FILE_ID    = "1kwPvWoNAXeEIn1mm8YaFlTtolR1w_ps-"
 DRIVE_SCOPES     = ["https://www.googleapis.com/auth/drive"]
 
 STATI_VALIDI      = {"completo", "in-lavorazione", "da-revisionare", "archivio-morto"}
-TIPI_VALIDI       = {"progetto", "relazione", "convegno", "appunti", "portfolio"}
+TIPI_VALIDI       = {"progetto", "relazione", "convegno", "appunti", "portfolio", "archivio"}
 DISCIPLINE_VALIDE = {"architettura", "storia", "urbanistica", "ingegneria", "altro"}
 CONTESTI_VALIDI   = {"università", "scuola", "professionale", "personale"}
 LINGUE_VALIDE     = {"it", "en", "it-en"}
@@ -127,8 +127,8 @@ def scan_percorso(percorso: Path, fonte_id: str, etichetta_id: str | None = None
         if err:
             errori.append({"percorso": rel_path, "errore": "; ".join(err)})
 
-        anno_str = str(meta.get('anno', ''))
-        if not anno_str:
+        anno_str = str(meta.get('anno') or '')
+        if not anno_str or anno_str == 'None':
             m = re.search(r'(\d{4})', rel_path)
             anno_str = m.group(1) if m else ''
 
