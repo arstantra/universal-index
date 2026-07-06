@@ -193,6 +193,59 @@ def salva_stato(stato: dict):
         json.dumps(stato, ensure_ascii=False, indent=2), encoding='utf-8'
     )
 
+# ─── HELPER RIUSABILE (usato da server.py) ─────────────────────────────────────
+
+def carica_api_key() -> str | None:
+    """Carica ANTHROPIC_API_KEY dall'ambiente o dal file .env accanto allo script."""
+    api_key = os.environ.get('ANTHROPIC_API_KEY')
+    if api_key:
+        return api_key
+    env_file = SCRIPT_DIR / '.env'
+    if not env_file.exists():
+        return None
+    for enc in ('utf-8-sig', 'utf-16', 'utf-8', 'latin-1'):
+        try:
+            text = env_file.read_text(encoding=enc)
+            # rimuove spazi tra caratteri (artefatto UTF-16)
+            if ' A N T H R O P I C' in text:
+                text = text.replace(' ', '')
+            for line in text.splitlines():
+                line = line.strip()
+                if line.startswith('ANTHROPIC_API_KEY='):
+                    return line.split('=', 1)[1].strip().strip('"\'')
+        except Exception:
+            continue
+    return None
+
+
+def genera_per_cartella(cartella: Path) -> tuple[bool, str]:
+    """
+    Genera (o rigenera) il README.md di una singola cartella.
+    Usato dall'endpoint /api/genera-readme del server locale.
+    Ritorna (ok, messaggio) senza sollevare eccezioni.
+    """
+    if not cartella.exists() or not cartella.is_dir():
+        return False, f"Cartella non trovata: {cartella}"
+
+    api_key = carica_api_key()
+    if not api_key:
+        return False, "ANTHROPIC_API_KEY non trovata (ambiente o file .env)"
+
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=api_key)
+    except ImportError:
+        return False, "Pacchetto mancante: pip install anthropic"
+
+    try:
+        contenuto = genera_readme(cartella, client)
+        if not contenuto.startswith('---'):
+            contenuto = '---\n' + contenuto
+        (cartella / 'README.md').write_text(contenuto, encoding='utf-8')
+        return True, "README.md generato"
+    except Exception as e:
+        return False, f"Errore generazione: {e}"
+
 # ─── MAIN ──────────────────────────────────────────────────────────────────────
 
 def main():

@@ -383,6 +383,27 @@
       background: #0d3326; color: var(--ok); border: 1px solid #1a5c3a; margin-top: 10px; text-align: center;
     }
 
+    /* MANUTENZIONE */
+    .manut-row {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 9px 12px;
+    }
+    .manut-row.conforme { opacity: .55; }
+    .manut-icon { font-size: 14px; flex-shrink: 0; }
+    .manut-info { flex: 1; min-width: 0; }
+    .manut-nome { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .manut-detail { font-size: 11px; color: var(--text2); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .manut-detail .issue { color: var(--warn); }
+    .manut-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    .manut-btn {
+      background: transparent; border: 1px solid var(--border); border-radius: 4px;
+      color: var(--text2); cursor: pointer; font-size: 11px; padding: 4px 8px;
+      transition: all .15s; white-space: nowrap;
+    }
+    .manut-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .manut-btn:disabled { opacity: .4; cursor: wait; }
+
     @media (max-width: 768px) {
       .app { grid-template-columns: 1fr; }
       aside { border-right: none; border-bottom: 1px solid var(--border); max-height: 240px; }
@@ -398,6 +419,8 @@
     <div id="lastUpdated">Caricamento...</div>
   </div>
   <div style="display:flex;gap:10px;align-items:center;">
+    <button class="btn btn-ghost" id="btnScan" style="display:none" onclick="apiScan()" title="Ri-scansiona le cartelle locali e aggiorna l'indice">🔄 Scansiona</button>
+    <button class="btn btn-ghost" id="btnManutenzione" style="display:none" onclick="openManutenzione()" title="Checklist struttura cartelle: README, file sciolti, sottocartelle standard">🧰 Manutenzione</button>
     <button class="btn btn-ghost" id="btnSyncDrive" style="display:none" onclick="syncDrive()" title="Carica data.json su Google Drive (versione pubblica)">☁ Sincronizza</button>
     <button class="btn btn-ghost" onclick="exportJSON()">⬇ Esporta JSON</button>
     <button class="btn btn-primary" onclick="openModal()">＋ Aggiungi Fonte</button>
@@ -565,6 +588,18 @@
   </div>
 </div>
 
+<!-- MODAL manutenzione -->
+<div class="overlay" id="modalManutenzione">
+  <div class="modal" style="width:680px;max-height:85vh;display:flex;flex-direction:column;">
+    <h3>🧰 Manutenzione archivio</h3>
+    <div id="manutenzioneStats" style="font-size:12px;color:var(--text2);margin-bottom:14px;"></div>
+    <div id="manutenzioneList" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:6px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeManutenzione()">Chiudi</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div id="toast"></div>
 
@@ -603,6 +638,8 @@
     if (isLocal) {
       document.getElementById('localBadge').style.display = 'block';
       document.getElementById('btnSyncDrive').style.display = 'inline-block';
+      document.getElementById('btnScan').style.display = 'inline-block';
+      document.getElementById('btnManutenzione').style.display = 'inline-block';
     }
     renderSidebar();
     populateAnnoFilter();
@@ -1267,6 +1304,120 @@
       showToast('✓ Etichetta "' + label + '" salvata su ' + supporto.label, 'ok');
     } catch {
       showToast('✗ Server non raggiungibile', 'err');
+    }
+  }
+
+  // ─── SCANSIONA ──────────────────────────────────────────────────────────────
+  async function apiScan() {
+    const btn = document.getElementById('btnScan');
+    btn.disabled = true; btn.textContent = '🔄 Scansiono...';
+    try {
+      const res  = await fetch('/api/scan', { method: 'POST' });
+      const json = await res.json();
+      if (!json.ok) { showToast('⚠ ' + (json.error || 'Errore'), 'err'); return; }
+      const err = json.errori_totali ? ` — ⚠ ${json.errori_totali} errori di validazione` : '';
+      showToast(`✓ Scansione completata: ${json.voci_totali} voci${err}`, json.errori_totali ? 'warn' : 'ok');
+      await loadData();   // ricarica l'indice aggiornato
+    } catch {
+      showToast('✗ Server non raggiungibile', 'err');
+    } finally {
+      btn.disabled = false; btn.textContent = '🔄 Scansiona';
+    }
+  }
+
+  // ─── MANUTENZIONE ───────────────────────────────────────────────────────────
+  function closeManutenzione() { document.getElementById('modalManutenzione').classList.remove('open'); }
+  document.getElementById('modalManutenzione').addEventListener('click', e => {
+    if (e.target === document.getElementById('modalManutenzione')) closeManutenzione();
+  });
+
+  async function openManutenzione() {
+    document.getElementById('modalManutenzione').classList.add('open');
+    document.getElementById('manutenzioneStats').textContent = 'Analisi in corso...';
+    document.getElementById('manutenzioneList').innerHTML = '';
+    try {
+      const res  = await fetch('/api/struttura-report');
+      const json = await res.json();
+      if (!json.ok) { document.getElementById('manutenzioneStats').textContent = '⚠ ' + (json.error || 'Errore'); return; }
+      renderManutenzione(json);
+    } catch {
+      document.getElementById('manutenzioneStats').textContent = '✗ Server non raggiungibile';
+    }
+  }
+
+  let manutCartelle = [];   // report corrente (per indice — evita percorsi negli onclick)
+
+  function renderManutenzione(data) {
+    manutCartelle = data.cartelle;
+    document.getElementById('manutenzioneStats').innerHTML =
+      `${data.totale} cartelle — <span style="color:var(--ok)">${data.conformi} conformi</span> · ` +
+      `<span style="color:var(--warn)">${data.da_sistemare} da sistemare</span>`;
+
+    const list = document.getElementById('manutenzioneList');
+    list.innerHTML = data.cartelle.map((c, i) => {
+      const issues = [];
+      if (c.readme === 'mancante')  issues.push('<span class="issue">README mancante</span>');
+      if (c.readme === 'invalido')  issues.push('<span class="issue">README senza frontmatter valido</span>');
+      if (c.file_sciolti.length)    issues.push(`<span class="issue">${c.file_sciolti.length} file sciolti</span>: ${esc(c.file_sciolti.slice(0,3).join(', '))}${c.file_sciolti.length>3?'…':''}`);
+      if (c.dir_mancanti.length)    issues.push(`manca: ${c.dir_mancanti.join(', ')}`);
+
+      const icon = c.conforme ? '✅' : (c.readme !== 'ok' ? '📝' : '🧹');
+      const readmeBtn = `<button class="manut-btn" onclick="generaReadme(this,${i})"
+        title="${c.readme==='ok' ? 'Rigenera il README con Claude' : 'Genera il README con Claude'}">📝 ${c.readme==='ok' ? 'Rigenera' : 'Genera'} README</button>`;
+      const strutturaBtn = c.dir_mancanti.length
+        ? `<button class="manut-btn" onclick="preparaStruttura(this,${i})"
+            title="Crea ${c.dir_mancanti.join(', ')} (non sposta nessun file)">📁 Prepara struttura</button>` : '';
+
+      return `<div class="manut-row ${c.conforme ? 'conforme' : ''}">
+        <span class="manut-icon">${icon}</span>
+        <div class="manut-info">
+          <div class="manut-nome" title="${esc(c.percorso)}">${esc(c.percorso)}</div>
+          <div class="manut-detail">${issues.length ? issues.join(' · ') : 'Struttura conforme'}</div>
+        </div>
+        <div class="manut-actions">${readmeBtn}${strutturaBtn}</div>
+      </div>`;
+    }).join('');
+  }
+
+  async function generaReadme(btn, idx) {
+    const c = manutCartelle[idx];
+    if (!c) return;
+    const etichettaId = c.etichetta, percorso = c.percorso;
+    btn.disabled = true; const orig = btn.textContent; btn.textContent = '⏳ Claude scrive...';
+    try {
+      const res  = await fetch('/api/genera-readme', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ etichetta_id: etichettaId, percorso })
+      });
+      const json = await res.json();
+      if (!json.ok) { showToast('⚠ ' + (json.error || 'Errore'), 'err'); btn.textContent = orig; btn.disabled = false; return; }
+      showToast('✓ README generato: ' + percorso, 'ok');
+      btn.textContent = '✓ Fatto';
+      await loadData();          // la voce appare subito nell'indice
+      openManutenzione();        // aggiorna la checklist
+    } catch {
+      showToast('✗ Server non raggiungibile', 'err');
+      btn.textContent = orig; btn.disabled = false;
+    }
+  }
+
+  async function preparaStruttura(btn, idx) {
+    const c = manutCartelle[idx];
+    if (!c) return;
+    const etichettaId = c.etichetta, percorso = c.percorso;
+    btn.disabled = true;
+    try {
+      const res  = await fetch('/api/prepara-struttura', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ etichetta_id: etichettaId, percorso })
+      });
+      const json = await res.json();
+      if (!json.ok) { showToast('⚠ ' + (json.error || 'Errore'), 'err'); btn.disabled = false; return; }
+      showToast('📁 ' + json.message + ' — ' + percorso, 'ok');
+      openManutenzione();        // aggiorna la checklist
+    } catch {
+      showToast('✗ Server non raggiungibile', 'err');
+      btn.disabled = false;
     }
   }
 

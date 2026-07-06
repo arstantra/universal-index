@@ -302,6 +302,186 @@ def add_etichetta():
 
     return jsonify({"ok": True, "etichetta": nuova_et})
 
+# ─── API: SCANSIONA ───────────────────────────────────────────────────────────
+
+@app.route("/api/scan", methods=["POST"])
+def api_scan():
+    """Rilancia la scansione locale (tutte le etichette configurate in sources.json)."""
+    try:
+        from scan_local import scan_percorso, update_data_json as scan_update
+    except ImportError as e:
+        return jsonify({"ok": False, "error": f"scan_local.py non importabile: {e}"}), 500
+
+    config = load_sources()
+    risultati, errori_tot = [], 0
+
+    for fonte in config.get("fonti", []):
+        if fonte.get("tipo") == "gdrive":
+            continue  # i Drive si scansionano con scan_gdrive.py da terminale
+        for et in fonte.get("etichette", []):
+            radice = et.get("percorso_radice")
+            if not radice or not Path(radice).exists():
+                continue
+            voci, errori = scan_percorso(Path(radice), fonte["id"], etichetta_id=et.get("id"))
+            scan_update(fonte["id"], et.get("id"), voci, dry_run=False)
+            errori_tot += len(errori)
+            risultati.append({"fonte": fonte["id"], "etichetta": et.get("id"),
+                              "voci": len(voci), "errori": errori})
+
+    if not risultati:
+        return jsonify({"ok": False, "error": "Nessuna etichetta locale con percorso raggiungibile"}), 400
+
+    return jsonify({"ok": True, "risultati": risultati,
+                    "voci_totali": sum(r["voci"] for r in risultati),
+                    "errori_totali": errori_tot})
+
+# ─── API: REPORT STRUTTURA (checklist conformità) ────────────────────────────
+
+CARTELLE_STANDARD = ("output", "assets", "_archivio")
+
+@app.route("/api/struttura-report", methods=["GET"])
+def struttura_report():
+    """
+    Analizza le cartelle NNN_ di ogni etichetta locale collegata e segnala:
+      - README mancante o senza frontmatter valido
+      - file sciolti nella root (fuori da output/assets/_archivio)
+      - sottocartelle standard mancanti
+    """
+    try:
+        from generate_readme import trova_cartelle_target, has_valid_readme
+    except ImportError as e:
+        return jsonify({"ok": False, "error": f"generate_readme.py non importabile: {e}"}), 500
+
+    config = load_sources()
+    report = []
+
+    for fonte in config.get("fonti", []):
+        if fonte.get("tipo") == "gdrive":
+            continue
+        for et in fonte.get("etichette", []):
+            radice = et.get("percorso_radice")
+            if not radice or not Path(radice).exists():
+                continue
+            root = Path(radice)
+
+            for cartella in trova_cartelle_target(root):
+                rel = str(cartella.relative_to(root)).replace("\\", "/")
+
+                if not (cartella / "README.md").exists():
+                    readme = "mancante"
+                elif not has_valid_readme(cartella):
+                    readme = "invalido"
+                else:
+                    readme = "ok"
+
+                try:
+                    contenuto = list(cartella.iterdir())
+                except OSError:
+                    continue
+                file_sciolti = sorted(
+                    f.name for f in contenuto
+                    if f.is_file() and f.name != "README.md" and not f.name.startswith("_")
+                )
+                dir_presenti = {f.name for f in contenuto if f.is_dir()}
+                dir_mancanti = [d for d in CARTELLE_STANDARD if d not in dir_presenti]
+
+                conforme = readme == "ok" and not file_sciolti
+                report.append({
+                    "fonte": fonte["id"],
+                    "etichetta": et.get("id"),
+                    "percorso": rel,
+                    "nome": cartella.name,
+                    "readme": readme,
+                    "file_sciolti": file_sciolti,
+                    "dir_mancanti": dir_mancanti,
+                    "conforme": conforme,
+                })
+
+    report.sort(key=lambda r: (r["conforme"], r["percorso"]))
+    n_ok = sum(1 for r in report if r["conforme"])
+    return jsonify({"ok": True, "totale": len(report), "conformi": n_ok,
+                    "da_sistemare": len(report) - n_ok, "cartelle": report})
+
+# ─── API: GENERA README ───────────────────────────────────────────────────────
+
+def _resolve_cartella(etichetta_id: str, percorso: str) -> Path | None:
+    """Percorso assoluto di una cartella-progetto a partire da (etichetta, percorso relativo)."""
+    if not percorso or ".." in percorso.replace("\\", "/").split("/"):
+        return None
+    config = load_sources()
+    for fonte in config.get("fonti", []):
+        for et in fonte.get("etichette", []):
+            if et.get("id") == etichetta_id and et.get("percorso_radice"):
+                candidate = Path(et["percorso_radice"]) / percorso
+                return candidate if candidate.exists() else None
+    return None
+
+
+@app.route("/api/genera-readme", methods=["POST"])
+def api_genera_readme():
+    """
+    Genera (o rigenera) il README.md di una cartella con la Claude API,
+    poi ri-scansiona l'etichetta così la voce appare subito nell'indice.
+    """
+    data      = request.get_json(silent=True) or {}
+    etichetta = (data.get("etichetta_id") or "").strip()
+    percorso  = (data.get("percorso") or "").strip()
+
+    cartella = _resolve_cartella(etichetta, percorso)
+    if cartella is None:
+        return jsonify({"ok": False, "error": f"Cartella non trovata: {percorso}"}), 404
+
+    try:
+        from generate_readme import genera_per_cartella
+    except ImportError as e:
+        return jsonify({"ok": False, "error": f"generate_readme.py non importabile: {e}"}), 500
+
+    ok, msg = genera_per_cartella(cartella)
+    if not ok:
+        return jsonify({"ok": False, "error": msg}), 502
+
+    # Ri-scansiona l'etichetta per aggiornare l'indice
+    try:
+        from scan_local import scan_percorso, update_data_json as scan_update
+        config = load_sources()
+        for fonte in config.get("fonti", []):
+            for et in fonte.get("etichette", []):
+                if et.get("id") == etichetta and et.get("percorso_radice"):
+                    voci, _err = scan_percorso(Path(et["percorso_radice"]),
+                                               fonte["id"], etichetta_id=etichetta)
+                    scan_update(fonte["id"], etichetta, voci, dry_run=False)
+    except Exception:
+        pass  # il README è comunque scritto; lo scan si può rifare a mano
+
+    return jsonify({"ok": True, "message": msg, "percorso": percorso})
+
+# ─── API: PREPARA STRUTTURA ───────────────────────────────────────────────────
+
+@app.route("/api/prepara-struttura", methods=["POST"])
+def prepara_struttura():
+    """
+    Crea le sottocartelle standard (output/, assets/, _archivio/) in una
+    cartella-progetto. NON sposta né tocca alcun file esistente.
+    """
+    data      = request.get_json(silent=True) or {}
+    etichetta = (data.get("etichetta_id") or "").strip()
+    percorso  = (data.get("percorso") or "").strip()
+
+    cartella = _resolve_cartella(etichetta, percorso)
+    if cartella is None:
+        return jsonify({"ok": False, "error": f"Cartella non trovata: {percorso}"}), 404
+
+    create = []
+    for nome in CARTELLE_STANDARD:
+        sub = cartella / nome
+        if not sub.exists():
+            sub.mkdir()
+            create.append(nome)
+
+    return jsonify({"ok": True, "create": create,
+                    "message": ("Create: " + ", ".join(create)) if create
+                               else "Struttura già completa"})
+
 # ─── API: SYNC GOOGLE DRIVE ───────────────────────────────────────────────────
 
 @app.route("/api/sync-drive", methods=["POST"])
