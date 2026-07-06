@@ -398,6 +398,7 @@
     <div id="lastUpdated">Caricamento...</div>
   </div>
   <div style="display:flex;gap:10px;align-items:center;">
+    <button class="btn btn-ghost" id="btnSyncDrive" style="display:none" onclick="syncDrive()" title="Carica data.json su Google Drive (versione pubblica)">☁ Sincronizza</button>
     <button class="btn btn-ghost" onclick="exportJSON()">⬇ Esporta JSON</button>
     <button class="btn btn-primary" onclick="openModal()">＋ Aggiungi Fonte</button>
   </div>
@@ -582,9 +583,14 @@
     (location.hostname === 'localhost' || location.hostname === '127.0.0.1');
 
   // ─── LOAD ───────────────────────────────────────────────────────────────────
+  // In locale (server.py): data.json fresco dal disco — le modifiche appaiono subito.
+  // Su GitHub Pages: dati pubblici serviti dall'Apps Script (data.json su Drive).
+  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxdsARp1UBp1vL-QMiq6oiXdMxrm9jpDox9dYV-whh1nogDuBBiD471LaqfjiWgOZTX/exec';
+
   async function loadData() {
     try {
-      const r = await fetch('https://script.google.com/macros/s/AKfycbxdsARp1UBp1vL-QMiq6oiXdMxrm9jpDox9dYV-whh1nogDuBBiD471LaqfjiWgOZTX/exec');
+      const url = isLocal ? 'data.json?t=' + Date.now() : APPS_SCRIPT_URL;
+      const r = await fetch(url);
       db = await r.json();
     } catch(e) {
       db = { meta: { lastUpdated: '—' }, fonti: [], voci: [] };
@@ -594,7 +600,10 @@
 
   function init() {
     document.getElementById('lastUpdated').textContent = 'Aggiornato: ' + (db.meta.lastUpdated || '—');
-    if (isLocal) document.getElementById('localBadge').style.display = 'block';
+    if (isLocal) {
+      document.getElementById('localBadge').style.display = 'block';
+      document.getElementById('btnSyncDrive').style.display = 'inline-block';
+    }
     renderSidebar();
     populateAnnoFilter();
     applyFilters();
@@ -602,6 +611,12 @@
   }
 
   // ─── HELPERS ────────────────────────────────────────────────────────────────
+  // Escaping HTML: i titoli/percorsi vengono dai README e possono contenere " ' < > &
+  function esc(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                          .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
   function getSupporto(id) { return db.fonti.find(f => f.id === id); }
 
   function getEtichetta(eId) {
@@ -666,7 +681,7 @@
             ? `<span class="supporto-arrow ${isOpen ? 'open' : ''}" onclick="toggleSupporto(event,'${f.id}')">▶</span>`
             : `<span style="width:10px;flex-shrink:0"></span>`}
           <div class="supporto-dot dot-${f.tipo}"></div>
-          <div class="supporto-name" title="${f.label}">${f.label}</div>
+          <div class="supporto-name" title="${esc(f.label)}">${esc(f.label)}</div>
           ${vociF.length > 0
             ? `<div class="supporto-count">${vociF.length}</div>`
             : `<span class="supporto-stato ${statoClass}">${f.stato || 'da-collegare'}</span>`}
@@ -681,7 +696,7 @@
           html += `
             <div class="etichetta-row ${isActE ? 'active' : ''}" onclick="selectFonte('${eKey}')">
               <div class="etichetta-dot dot-${e.colore || 'nessuna'}"></div>
-              <div class="etichetta-name">${e.label}</div>
+              <div class="etichetta-name">${esc(e.label)}</div>
               ${vociE.length > 0
                 ? `<div class="etichetta-count">${vociE.length}</div>`
                 : `<span class="etichetta-stato">${e.stato || 'da-collegare'}</span>`}
@@ -726,13 +741,13 @@
     if (activeFonte.startsWith('et:')) {
       const r = getEtichetta(activeFonte.slice(3));
       if (r) {
-        bar.innerHTML = `<span>${r.supporto.label}</span><span class="crumb-sep">›</span>
-          <span class="crumb-etichetta" style="color:var(--${r.etichetta.colore})">${r.etichetta.label}</span>`;
+        bar.innerHTML = `<span>${esc(r.supporto.label)}</span><span class="crumb-sep">›</span>
+          <span class="crumb-etichetta" style="color:var(--${r.etichetta.colore})">${esc(r.etichetta.label)}</span>`;
         return;
       }
     }
     const f = getSupporto(activeFonte);
-    if (f) bar.innerHTML = `<span>${f.label}</span>`;
+    if (f) bar.innerHTML = `<span>${esc(f.label)}</span>`;
   }
 
   // ─── FILTERS ────────────────────────────────────────────────────────────────
@@ -855,7 +870,7 @@
   function etichettaBadgeHTML(eId) {
     const colore = etichettaColore(eId);
     const label  = etichettaLabel(eId);
-    return `<span class="badge badge-etichetta-${colore || 'none'}">${label}</span>`;
+    return `<span class="badge badge-etichetta-${colore || 'none'}">${esc(label)}</span>`;
   }
 
   function renderTable() {
@@ -878,14 +893,14 @@
           >${focIco}</button>
         </td>
         <td>
-          <div class="cell-titolo" title="${v.titolo}">${v.titolo || '—'}</div>
-          <div style="font-size:11px;color:var(--text2);margin-top:2px;">${(v.tags||[]).join(' · ')}</div>
+          <div class="cell-titolo" title="${esc(v.titolo)}">${esc(v.titolo) || '—'}</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px;">${esc((v.tags||[]).join(' · '))}</div>
         </td>
-        <td>${v.anno || '—'}</td>
-        <td><span class="badge badge-tipo">${v.tipo || '—'}</span></td>
+        <td>${esc(v.anno) || '—'}</td>
+        <td><span class="badge badge-tipo">${esc(v.tipo) || '—'}</span></td>
         <td>${statoBadgeHTML(v)}</td>
         <td>${etichettaBadgeHTML(v.etichetta)}</td>
-        <td><div class="cell-percorso" title="${v.percorso}">${v.percorso || '—'}</div></td>
+        <td><div class="cell-percorso" title="${esc(v.percorso)}">${esc(v.percorso) || '—'}</div></td>
       </tr>`;
     }).join('');
   }
@@ -951,8 +966,8 @@
       html += `
         <div class="tree-leaf-row" style="padding-left:${12 + indent + 20}px">
           <span class="tree-leaf-icon">📄</span>
-          <span class="tree-leaf-title">${v.titolo || cleanName((v.percorso||'').split('/').pop())}</span>
-          ${(v.tags||[]).length ? `<span class="tree-leaf-tags">${v.tags.slice(0,3).join(' · ')}</span>` : ''}
+          <span class="tree-leaf-title">${esc(v.titolo || cleanName((v.percorso||'').split('/').pop()))}</span>
+          ${(v.tags||[]).length ? `<span class="tree-leaf-tags">${esc(v.tags.slice(0,3).join(' · '))}</span>` : ''}
           <span style="margin-left:4px">${statoBadgeHTML(v)}</span>
           <span class="badge badge-tipo" style="margin-left:4px">${v.tipo || '—'}</span>
           <button class="focus-row-btn ${focCls}" style="margin-left:6px"
@@ -1072,7 +1087,7 @@
       codaList.innerHTML = coda.map(v => `
         <div class="backlog-item">
           <span class="backlog-bullet">▸</span>
-          <span class="backlog-title" title="${v.titolo}">${v.titolo}</span>
+          <span class="backlog-title" title="${esc(v.titolo)}">${esc(v.titolo)}</span>
           ${isLocal ? `
             <button class="backlog-promote" onclick="setFocus('${v.id}','attivo')" title="Promuovi ad attivo">▶</button>
             <button class="backlog-del"     onclick="setFocus('${v.id}',null)"     title="Rimuovi dalla coda">×</button>
@@ -1180,7 +1195,7 @@
   function openModal() {
     // Popola la select dei supporti per il tab etichetta
     const sel = document.getElementById('m-supporto-sel');
-    sel.innerHTML = db.fonti.map(f => `<option value="${f.id}">${f.label}</option>`).join('');
+    sel.innerHTML = db.fonti.map(f => `<option value="${esc(f.id)}">${esc(f.label)}</option>`).join('');
     document.getElementById('modal').classList.add('open');
   }
   function closeModal() { document.getElementById('modal').classList.remove('open'); }
@@ -1198,22 +1213,34 @@
     else aggiungiEtichetta();
   }
 
-  function aggiungiSupporto() {
+  // Le fonti/etichette vengono salvate dal server locale in data.json + sources.json.
+  // Su GitHub Pages (read-only) l'aggiunta non è possibile.
+  async function aggiungiSupporto() {
+    if (!isLocal) { showToast('⚠ Aggiunta possibile solo dal server locale', 'warn'); return; }
     const label = document.getElementById('m-label').value.trim();
     const tipo  = document.getElementById('m-tipo').value;
     const note  = document.getElementById('m-note').value.trim();
     if (!label) { alert('Il nome del supporto è obbligatorio.'); return; }
-    // Genera id: lowercase, solo alfanumerici e trattini
-    const id = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    if (db.fonti.find(f => f.id === id)) { alert('Esiste già un supporto con ID "' + id + '". Scegli un nome diverso.'); return; }
-    db.fonti.push({ id, label, tipo, stato: 'da-collegare', note, etichette: [] });
-    closeModal();
-    ['m-label','m-note'].forEach(i => document.getElementById(i).value = '');
-    renderSidebar(); renderStats();
-    showToast('✓ Supporto "' + label + '" aggiunto', 'ok');
+
+    try {
+      const res  = await fetch('/api/add-fonte', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label, tipo, note })
+      });
+      const json = await res.json();
+      if (!json.ok) { showToast('⚠ ' + (json.error || 'Errore'), 'err'); return; }
+      db.fonti.push(json.fonte);
+      closeModal();
+      ['m-label','m-note'].forEach(i => document.getElementById(i).value = '');
+      renderSidebar(); renderStats();
+      showToast('✓ Supporto "' + label + '" salvato', 'ok');
+    } catch {
+      showToast('✗ Server non raggiungibile', 'err');
+    }
   }
 
-  function aggiungiEtichetta() {
+  async function aggiungiEtichetta() {
+    if (!isLocal) { showToast('⚠ Aggiunta possibile solo dal server locale', 'warn'); return; }
     const fId    = document.getElementById('m-supporto-sel').value;
     const label  = document.getElementById('m-et-label').value.trim();
     const colore = document.getElementById('m-et-colore').value;
@@ -1222,16 +1249,41 @@
     if (!label) { alert('Il nome dell\'etichetta è obbligatorio.'); return; }
     const supporto = db.fonti.find(f => f.id === fId);
     if (!supporto) return;
-    const eId = fId + '-' + colore + '-' + Date.now();
-    const nuovaEt = { id: eId, label, colore, descrizione: desc, percorso_radice: path || null, stato: path ? 'attivo' : 'da-collegare' };
-    if (!supporto.etichette) supporto.etichette = [];
-    supporto.etichette.push(nuovaEt);
-    if (path) supporto.stato = 'parziale';
-    closeModal();
-    ['m-et-label','m-et-percorso','m-et-desc'].forEach(i => document.getElementById(i).value = '');
-    expandedSupporti.add(fId);
-    renderSidebar(); renderStats();
-    showToast('✓ Etichetta "' + label + '" aggiunta a ' + supporto.label, 'ok');
+
+    try {
+      const res  = await fetch('/api/add-etichetta', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fonte_id: fId, label, colore, percorso_radice: path, descrizione: desc })
+      });
+      const json = await res.json();
+      if (!json.ok) { showToast('⚠ ' + (json.error || 'Errore'), 'err'); return; }
+      if (!supporto.etichette) supporto.etichette = [];
+      supporto.etichette.push(json.etichetta);
+      if (path && supporto.stato === 'da-collegare') supporto.stato = 'parziale';
+      closeModal();
+      ['m-et-label','m-et-percorso','m-et-desc'].forEach(i => document.getElementById(i).value = '');
+      expandedSupporti.add(fId);
+      renderSidebar(); renderStats();
+      showToast('✓ Etichetta "' + label + '" salvata su ' + supporto.label, 'ok');
+    } catch {
+      showToast('✗ Server non raggiungibile', 'err');
+    }
+  }
+
+  // ─── SYNC GOOGLE DRIVE ──────────────────────────────────────────────────────
+  async function syncDrive() {
+    const btn = document.getElementById('btnSyncDrive');
+    btn.disabled = true; btn.textContent = '☁ Sincronizzo...';
+    try {
+      const res  = await fetch('/api/sync-drive', { method: 'POST' });
+      const json = await res.json();
+      if (json.ok) showToast('☁ ' + (json.message || 'Sincronizzato'), 'ok');
+      else         showToast('⚠ ' + (json.error || 'Errore di sincronizzazione'), 'err');
+    } catch {
+      showToast('✗ Server non raggiungibile', 'err');
+    } finally {
+      btn.disabled = false; btn.textContent = '☁ Sincronizza';
+    }
   }
 
   // ─── EXPORT ─────────────────────────────────────────────────────────────────

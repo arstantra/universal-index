@@ -7,33 +7,45 @@ la struttura e aggiorna data.json.
 
 USO (modalità config — raccomandata):
     python scan_local.py
+    python scan_local.py --dry-run
+    python scan_local.py --no-upload      # non carica su Google Drive
 
 USO (modalità manuale — una sola etichetta):
     python scan_local.py --fonte msi --etichetta msi-rossa --root "C:/Users/.../Etichetta_Rossa"
     python scan_local.py --fonte ssd1 --etichetta ssd1-gialla --root "D:/Etichetta_Gialla" --dry-run
 
 REGOLE APPLICATE (Parser Rules):
-  - Ogni cartella in sources.json è trattata come cartella-anno o come
-    root contenente cartelle-anno
-  - Entra nelle sotto-cartelle con prefisso numerico (es. 010_NomeProgetto)
-  - Legge README.md nella root della sotto-cartella (non annidati)
+  - Esplora ricorsivamente il percorso radice dell'etichetta
+  - Indicizza ogni cartella che contiene un README.md con frontmatter YAML
+  - NON scende dentro una cartella già indicizzata (i README annidati
+    più in profondità appartengono a repo/materiali interni, non all'indice)
   - Ignora file/cartelle il cui nome inizia con _ (es. _archivio/, _bozza.pdf)
+
+GARANZIE AL RESCAN:
+  - I campi gestiti dall'interfaccia (focus, focus_azione) vengono
+    preservati: la scansione non azzera il pannello "Progetto attivo/Coda"
+  - Vengono sostituite SOLO le voci della coppia (fonte, etichetta)
+    scansionata; tutte le altre restano intatte
 """
 
-import os, re, json, yaml, argparse, sys
-from datetime import datetime, date
+import os, re, json, argparse, sys
+from datetime import date
 from pathlib import Path
+
+try:
+    import yaml
+except ImportError:
+    print("Installo PyYAML...")
+    os.system(f'"{sys.executable}" -m pip install pyyaml --quiet')
+    import yaml
+
+from drive_sync import upload_to_drive
 
 # ─── CONFIG ────────────────────────────────────────────────────────────────────
 
-SCRIPT_DIR       = Path(__file__).parent
-DATA_JSON        = SCRIPT_DIR / "data.json"
-SOURCES_JSON     = SCRIPT_DIR / "sources.json"
-ASSETS_DIR       = SCRIPT_DIR.parent / "assets"
-CREDENTIALS_FILE = ASSETS_DIR / "credentials_drive.json"
-TOKEN_FILE       = ASSETS_DIR / "token_drive.json"
-DRIVE_FILE_ID    = "1kwPvWoNAXeEIn1mm8YaFlTtolR1w_ps-"
-DRIVE_SCOPES     = ["https://www.googleapis.com/auth/drive"]
+SCRIPT_DIR   = Path(__file__).parent
+DATA_JSON    = SCRIPT_DIR / "data.json"
+SOURCES_JSON = SCRIPT_DIR / "sources.json"
 
 STATI_VALIDI      = {"completo", "in-lavorazione", "da-revisionare", "archivio-morto"}
 TIPI_VALIDI       = {"progetto", "relazione", "convegno", "appunti", "portfolio", "archivio"}
@@ -41,13 +53,16 @@ DISCIPLINE_VALIDE = {"architettura", "storia", "urbanistica", "ingegneria", "alt
 CONTESTI_VALIDI   = {"università", "scuola", "professionale", "personale"}
 LINGUE_VALIDE     = {"it", "en", "it-en"}
 
-RE_NUM_PREFIX  = re.compile(r'^\d{3}_')
-RE_UNDERSCORE  = re.compile(r'^_')
+RE_UNDERSCORE = re.compile(r'^_')
+
+# Campi delle voci gestiti dall'interfaccia (server.py) e NON dal README:
+# vanno preservati quando la voce viene rigenerata da una scansione.
+CAMPI_PRESERVATI = ("focus", "focus_azione")
 
 # ─── YAML PARSING ──────────────────────────────────────────────────────────────
 
 def extract_yaml(readme_path: Path) -> dict | None:
-    """Estrae il blocco YAML frontmatter da un README.md."""
+    """Estrae il blocco YAML frontmatter da un README.md. None se assente/invalido."""
     try:
         text = readme_path.read_text(encoding='utf-8', errors='replace')
     except Exception:
@@ -61,13 +76,14 @@ def extract_yaml(readme_path: Path) -> dict | None:
         return None
 
     try:
-        return yaml.safe_load(parts[1]) or {}
+        meta = yaml.safe_load(parts[1])
+        return meta if isinstance(meta, dict) else None
     except yaml.YAMLError:
         return None
 
 # ─── VALIDAZIONE ───────────────────────────────────────────────────────────────
 
-def valida_voce(meta: dict, cartella: Path) -> list[str]:
+def valida_voce(meta: dict) -> list[str]:
     """Ritorna lista di errori di validazione (vuota = OK)."""
     errori = []
     if not meta.get('titolo'):
@@ -92,12 +108,15 @@ def valida_voce(meta: dict, cartella: Path) -> list[str]:
 
 # ─── SCANNER ───────────────────────────────────────────────────────────────────
 
-def scan_percorso(percorso: Path, fonte_id: str, etichetta_id: str | None = None) -> tuple[list[dict], list[dict]]:
+def scan_percorso(percorso: Path, fonte_id: str,
+                  etichetta_id: str | None = None) -> tuple[list[dict], list[dict]]:
     """
-    Scansione ricorsiva libera: esplora tutta la cartella in profondità,
-    trova ogni README.md con frontmatter YAML valido e lo indicizza.
-    Ignora cartelle/file che iniziano con _.
-    etichetta_id: id dell'etichetta (es. 'msi-rossa') da assegnare alle voci.
+    Scansione ricorsiva: esplora la cartella in profondità e indicizza ogni
+    cartella con README.md dotato di frontmatter YAML valido.
+
+    Una volta indicizzata una cartella NON scende nei suoi figli: eventuali
+    README annidati (repo git, sottocartelle di materiali) appartengono al
+    progetto, non all'indice. Cartelle/file con prefisso _ sono ignorati.
     """
     if not percorso.exists():
         print(f"  [ERRORE] Cartella non trovata: {percorso}")
@@ -105,8 +124,7 @@ def scan_percorso(percorso: Path, fonte_id: str, etichetta_id: str | None = None
 
     print(f"  📂 {percorso}")
 
-    voci = []
-    errori = []
+    voci, errori = [], []
 
     for dirpath, dirnames, filenames in os.walk(percorso):
         # Rimuovi in-place le cartelle da ignorare (prefisso _)
@@ -116,14 +134,18 @@ def scan_percorso(percorso: Path, fonte_id: str, etichetta_id: str | None = None
             continue
 
         cartella = Path(dirpath)
-        readme   = cartella / 'README.md'
-        rel_path = str(cartella.relative_to(percorso)).replace('\\', '/')
-
-        meta = extract_yaml(readme)
+        meta = extract_yaml(cartella / 'README.md')
         if meta is None:
             continue  # README senza frontmatter: non è una voce di archivio
 
-        err = valida_voce(meta, cartella)
+        # Cartella indicizzata → non scendere oltre (evita duplicati annidati)
+        dirnames.clear()
+
+        rel_path = str(cartella.relative_to(percorso)).replace('\\', '/')
+        if rel_path == '.':
+            rel_path = cartella.name
+
+        err = valida_voce(meta)
         if err:
             errori.append({"percorso": rel_path, "errore": "; ".join(err)})
 
@@ -140,7 +162,7 @@ def scan_percorso(percorso: Path, fonte_id: str, etichetta_id: str | None = None
             "fonte":      fonte_id,
             "etichetta":  etichetta_id,   # None se non classificato
             "percorso":   rel_path,
-            "titolo":     meta.get('titolo', cartella.name),
+            "titolo":     meta.get('titolo') or cartella.name,
             "anno":       anno_str,
             "tipo":       meta.get('tipo', ''),
             "stato":      meta.get('stato', 'da-revisionare'),
@@ -148,7 +170,7 @@ def scan_percorso(percorso: Path, fonte_id: str, etichetta_id: str | None = None
             "contesto":   meta.get('contesto', ''),
             "lingua":     meta.get('lingua', 'it'),
             "output":     meta.get('output', ''),
-            "tags":       meta.get('tags', []),
+            "tags":       meta.get('tags') or [],
             "note":       meta.get('note', ''),
         }
         voci.append(voce)
@@ -156,11 +178,66 @@ def scan_percorso(percorso: Path, fonte_id: str, etichetta_id: str | None = None
 
     return voci, errori
 
+# ─── AGGIORNA DATA.JSON ────────────────────────────────────────────────────────
+
+def update_data_json(fonte_id: str, etichetta_id: str | None,
+                     nuove_voci: list[dict], dry_run: bool = False):
+    """
+    Sostituisce le voci della coppia (fonte, etichetta) con quelle nuove,
+    lasciando intatte tutte le altre. Preserva i campi gestiti
+    dall'interfaccia (focus, focus_azione) sulle voci che sopravvivono.
+    """
+    if not DATA_JSON.exists():
+        print(f"[ERRORE] {DATA_JSON} non trovato.")
+        sys.exit(1)
+
+    db = json.loads(DATA_JSON.read_text(encoding='utf-8'))
+
+    if not any(f['id'] == fonte_id for f in db.get('fonti', [])):
+        print(f"    [ATTENZIONE] Supporto '{fonte_id}' non registrato in data.json. "
+              f"Aggiungilo dalla dashboard (server locale) prima di scansionare.")
+
+    # Salva i campi da preservare, indicizzati per id voce
+    preservati = {
+        v['id']: {k: v[k] for k in CAMPI_PRESERVATI if k in v}
+        for v in db.get('voci', [])
+        if any(k in v for k in CAMPI_PRESERVATI)
+    }
+
+    # Rimuovi solo le voci di questa (fonte + etichetta)
+    db['voci'] = [v for v in db.get('voci', [])
+                  if not (v.get('fonte') == fonte_id and v.get('etichetta') == etichetta_id)]
+    db['voci'].extend(nuove_voci)
+
+    # Riapplica focus/focus_azione alle voci ricreate
+    for v in db['voci']:
+        if v['id'] in preservati:
+            v.update(preservati[v['id']])
+
+    db['meta']['lastUpdated'] = date.today().isoformat()
+
+    if dry_run:
+        print(f"\n    [DRY RUN] Nessuna modifica salvata. Voci trovate: {len(nuove_voci)}")
+        return
+
+    DATA_JSON.write_text(json.dumps(db, ensure_ascii=False, indent=2), encoding='utf-8')
+    print(f"\n    ✅ data.json aggiornato: {len(nuove_voci)} voci per '{fonte_id}/{etichetta_id}'.")
+
+
+def stampa_riepilogo(voci: list[dict], errori: list[dict]):
+    print(f"  📊 Voci: {len(voci)} | "
+          f"Completi: {sum(1 for v in voci if v['stato']=='completo')} | "
+          f"In lav.: {sum(1 for v in voci if v['stato']=='in-lavorazione')} | "
+          f"Da rev.: {sum(1 for v in voci if v['stato']=='da-revisionare')} | "
+          f"Morti: {sum(1 for v in voci if v['stato']=='archivio-morto')} | "
+          f"Errori: {len(errori)}")
+
+# ─── SCANSIONE DA CONFIG ───────────────────────────────────────────────────────
 
 def scan_da_config(dry_run: bool = False):
     """
-    Legge sources.json (nuovo formato gerarchico: supporto > etichette)
-    e scansiona tutte le etichette configurate.
+    Legge sources.json (formato gerarchico: supporto > etichette)
+    e scansiona tutte le etichette con percorso_radice definito.
     """
     if not SOURCES_JSON.exists():
         print(f"[ERRORE] {SOURCES_JSON} non trovato.")
@@ -169,6 +246,9 @@ def scan_da_config(dry_run: bool = False):
     config = json.loads(SOURCES_JSON.read_text(encoding='utf-8'))
 
     for supporto in config.get('fonti', []):
+        if supporto.get('tipo') == 'gdrive':
+            continue  # i Google Drive si scansionano con scan_gdrive.py
+
         fonte_id    = supporto['id']
         fonte_label = supporto.get('label', fonte_id)
         etichette   = supporto.get('etichette', [])
@@ -187,7 +267,7 @@ def scan_da_config(dry_run: bool = False):
             print(f"\n  🏷  Etichetta: {et_label} [{et_id}]")
 
             if not percorso:
-                print("    [SKIP] Nessun percorso_radice definito.")
+                print("    [SKIP] Nessun percorso_radice definito (supporto non collegato).")
                 continue
 
             voci, errori = scan_percorso(Path(percorso), fonte_id, etichetta_id=et_id)
@@ -200,80 +280,6 @@ def scan_da_config(dry_run: bool = False):
             update_data_json(fonte_id, et_id, voci, dry_run)
             stampa_riepilogo(voci, errori)
 
-# ─── AGGIORNA DATA.JSON ────────────────────────────────────────────────────────
-
-def update_data_json(fonte_id: str, etichetta_id: str | None, nuove_voci: list[dict], dry_run: bool = False):
-    """
-    Rimuove le voci precedenti della (fonte, etichetta) e inserisce quelle nuove.
-    Questo permette di ri-scansionare una singola etichetta senza toccare le altre.
-    """
-    if not DATA_JSON.exists():
-        print(f"[ERRORE] {DATA_JSON} non trovato.")
-        sys.exit(1)
-
-    db = json.loads(DATA_JSON.read_text(encoding='utf-8'))
-
-    fonte_registrata = any(f['id'] == fonte_id for f in db.get('fonti', []))
-    if not fonte_registrata:
-        print(f"    [ATTENZIONE] Supporto '{fonte_id}' non registrato in data.json. Aggiungilo dalla dashboard.")
-
-    # Rimuovi solo le voci di questa (fonte + etichetta)
-    db['voci'] = [v for v in db.get('voci', [])
-                  if not (v.get('fonte') == fonte_id and v.get('etichetta') == etichetta_id)]
-    db['voci'].extend(nuove_voci)
-    db['meta']['lastUpdated'] = date.today().isoformat()
-
-    if dry_run:
-        print(f"\n    [DRY RUN] Nessuna modifica salvata. Voci trovate: {len(nuove_voci)}")
-        return
-
-    DATA_JSON.write_text(json.dumps(db, ensure_ascii=False, indent=2), encoding='utf-8')
-    print(f"\n    ✅ data.json aggiornato: {len(nuove_voci)} voci per '{fonte_id}/{etichetta_id}'.")
-
-def stampa_riepilogo(voci: list[dict], errori: list[dict]):
-    print(f"  📊 Voci: {len(voci)} | "
-          f"Completi: {sum(1 for v in voci if v['stato']=='completo')} | "
-          f"In lav.: {sum(1 for v in voci if v['stato']=='in-lavorazione')} | "
-          f"Da rev.: {sum(1 for v in voci if v['stato']=='da-revisionare')} | "
-          f"Morti: {sum(1 for v in voci if v['stato']=='archivio-morto')} | "
-          f"Errori: {len(errori)}")
-
-# ─── GOOGLE DRIVE UPLOAD ───────────────────────────────────────────────────────
-
-def upload_to_drive():
-    """Carica data.json su Google Drive (aggiorna file esistente, stesso ID)."""
-    try:
-        from google.oauth2.credentials import Credentials
-        from google_auth_oauthlib.flow import InstalledAppFlow
-        from google.auth.transport.requests import Request
-        from googleapiclient.discovery import build
-        from googleapiclient.http import MediaFileUpload
-    except ImportError:
-        print("\n  [DRIVE] Librerie mancanti. Esegui:")
-        print("  pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib")
-        return
-
-    if not CREDENTIALS_FILE.exists():
-        print(f"\n  [DRIVE] credentials_drive.json non trovato in {ASSETS_DIR}")
-        return
-
-    creds = None
-    if TOKEN_FILE.exists():
-        creds = Credentials.from_authorized_user_file(str(TOKEN_FILE), DRIVE_SCOPES)
-
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(str(CREDENTIALS_FILE), DRIVE_SCOPES)
-            creds = flow.run_local_server(port=0)
-        TOKEN_FILE.write_text(creds.to_json(), encoding='utf-8')
-
-    service = build("drive", "v3", credentials=creds)
-    media = MediaFileUpload(str(DATA_JSON), mimetype="application/json", resumable=False)
-    service.files().update(fileId=DRIVE_FILE_ID, media_body=media).execute()
-    print(f"\n  ☁️  data.json caricato su Google Drive.")
-
 # ─── MAIN ──────────────────────────────────────────────────────────────────────
 
 def main():
@@ -282,6 +288,7 @@ def main():
     parser.add_argument('--etichetta', help='ID etichetta (modalità manuale, es. msi-rossa)')
     parser.add_argument('--root',      help='Cartella radice (modalità manuale)')
     parser.add_argument('--dry-run',   action='store_true', help='Simula senza scrivere su data.json')
+    parser.add_argument('--no-upload', action='store_true', help='Non caricare data.json su Google Drive')
     args = parser.parse_args()
 
     if args.fonte and args.root:
@@ -299,14 +306,8 @@ def main():
         # Modalità config: legge sources.json
         scan_da_config(dry_run=args.dry_run)
 
-    if not args.dry_run:
+    if not args.dry_run and not args.no_upload:
         upload_to_drive()
 
 if __name__ == '__main__':
-    try:
-        import yaml
-    except ImportError:
-        print("Installo PyYAML...")
-        os.system(f"{sys.executable} -m pip install pyyaml")
-        import yaml
     main()
