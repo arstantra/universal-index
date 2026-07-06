@@ -558,6 +558,13 @@ def _update_readme_stato(readme_path: Path, new_stato: str) -> None:
 # ─── MAIN ─────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
+    import argparse, threading, webbrowser
+
+    parser = argparse.ArgumentParser(description="Universal Index — Server Locale")
+    parser.add_argument("--no-browser", action="store_true",
+                        help="Non aprire il browser all'avvio")
+    args = parser.parse_args()
+
     print()
     print("╔══════════════════════════════════════════╗")
     print("║   Universal Index — Server Locale        ║")
@@ -566,4 +573,8 @@ if __name__ == "__main__":
     print("║   Ctrl+C per fermare                     ║")
     print("╚══════════════════════════════════════════╝")
     print()
+
+    if not args.no_browser:
+        threading.Timer(1.5, lambda: webbrowser.open(f"http://localhost:{PORT}")).start()
+
     app.run(host="127.0.0.1", port=PORT, debug=False)
