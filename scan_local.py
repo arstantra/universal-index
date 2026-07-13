@@ -55,6 +55,48 @@ LINGUE_VALIDE     = {"it", "en", "it-en"}
 
 RE_UNDERSCORE = re.compile(r'^_')
 
+# ─── CONTENITORI vs UNITÀ (stesse regole di crea_readme_minimi.py) ─────────────
+# Un CONTENITORE (cartella-area di primo livello, cartella-anno o AA-anno) non è
+# mai una voce: va sempre attraversato in profondità. Una UNITÀ con README valido
+# è una voce e ferma la discesa. Così lo scanner non si blocca più al secondo
+# livello quando un contenitore ha (per errore) un README.
+RE_PREFISSO         = re.compile(r'^\d{2,3}[_\- ]')          # 010_, 27-, 001 ...
+RE_CONTENITORE_ANNO = re.compile(
+    r'^(aa[ _\-]*)?(19|20)\d{2}([ _\-]+(19|20)\d{2})?$', re.IGNORECASE)
+CARTELLE_IGNORATE   = {
+    "$RECYCLE.BIN", "System Volume Information", ".Trash-1000",
+    ".Spotlight-V100", ".fseventsd", "found.000", "RECYCLER",
+}
+
+def _e_contenitore(nome: str, depth: int, ha_sottocartelle: bool) -> bool:
+    """
+    True se la cartella è un contenitore da attraversare senza indicizzare:
+      - primo livello sotto la radice, con sottocartelle e senza prefisso NNN_
+        (es. Area_Personale, Area_Istruzione)
+      - cartella-anno / AA-anno a qualsiasi livello, con sottocartelle
+        (es. 2019, 2020-2021, AA 2020-2021)
+    """
+    if not ha_sottocartelle:
+        return False
+    if depth == 1:
+        return not RE_PREFISSO.match(nome)
+    return bool(RE_CONTENITORE_ANNO.match(nome))
+
+# ─── I/O ROBUSTO (byte nulli + scrittura atomica) ──────────────────────────────
+
+def read_json_robusto(path: Path) -> dict:
+    """Legge un JSON tollerando byte nulli/spazzatura finale (corruzione OneDrive)."""
+    raw = path.read_bytes()
+    if b"\x00" in raw:
+        raw = raw.replace(b"\x00", b"")
+    return json.loads(raw.decode("utf-8").strip())
+
+def write_json_atomico(path: Path, data: dict):
+    """Scrive su file temporaneo e poi os.replace: niente file a metà, niente corruzione."""
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(tmp, path)
+
 # Campi delle voci gestiti dall'interfaccia (server.py) e NON dal README:
 # vanno preservati quando la voce viene rigenerata da una scansione.
 CAMPI_PRESERVATI = ("focus", "focus_azione")
@@ -111,12 +153,18 @@ def valida_voce(meta: dict) -> list[str]:
 def scan_percorso(percorso: Path, fonte_id: str,
                   etichetta_id: str | None = None) -> tuple[list[dict], list[dict]]:
     """
-    Scansione ricorsiva: esplora la cartella in profondità e indicizza ogni
-    cartella con README.md dotato di frontmatter YAML valido.
+    Scansione ricorsiva a PIENA PROFONDITÀ.
 
-    Una volta indicizzata una cartella NON scende nei suoi figli: eventuali
-    README annidati (repo git, sottocartelle di materiali) appartengono al
-    progetto, non all'indice. Cartelle/file con prefisso _ sono ignorati.
+    Regole di discesa (risolvono il blocco "si ferma al secondo livello"):
+      - CONTENITORE (area di primo livello, cartella-anno/AA con sottocartelle):
+        non è mai una voce, viene sempre attraversato — anche se contiene un
+        README spurio. Prima invece un README su un anno bloccava la discesa
+        e nascondeva tutti i progetti dentro.
+      - UNITÀ con README.md dotato di frontmatter YAML valido: è una voce e
+        ferma la discesa (i README annidati di repo/materiali non contano).
+      - Cartella senza README valido (e non contenitore): non è una voce, ma
+        si continua a scendere per raggiungere eventuali progetti più in fondo.
+      - Cartelle/file con prefisso _ o cartelle di sistema: ignorati.
     """
     if not percorso.exists():
         print(f"  [ERRORE] Cartella non trovata: {percorso}")
@@ -127,18 +175,26 @@ def scan_percorso(percorso: Path, fonte_id: str,
     voci, errori = [], []
 
     for dirpath, dirnames, filenames in os.walk(percorso):
-        # Rimuovi in-place le cartelle da ignorare (prefisso _)
-        dirnames[:] = sorted(d for d in dirnames if not RE_UNDERSCORE.match(d))
-
-        if 'README.md' not in filenames:
-            continue
+        # Rimuovi in-place le cartelle da ignorare (prefisso _ e cartelle di sistema)
+        dirnames[:] = sorted(d for d in dirnames
+                             if not RE_UNDERSCORE.match(d) and d not in CARTELLE_IGNORATE)
 
         cartella = Path(dirpath)
+        rel = cartella.relative_to(percorso)
+        depth = len(rel.parts)   # 0 = radice, 1 = primo livello, ...
+
+        # Contenitore → si attraversa sempre, non è mai una voce
+        if depth >= 1 and _e_contenitore(cartella.name, depth, bool(dirnames)):
+            continue
+
+        if 'README.md' not in filenames:
+            continue  # nessuna voce qui, ma os.walk prosegue in profondità
+
         meta = extract_yaml(cartella / 'README.md')
         if meta is None:
-            continue  # README senza frontmatter: non è una voce di archivio
+            continue  # README senza frontmatter: non è una voce, si prosegue
 
-        # Cartella indicizzata → non scendere oltre (evita duplicati annidati)
+        # Unità indicizzata → non scendere oltre (evita duplicati annidati)
         dirnames.clear()
 
         rel_path = str(cartella.relative_to(percorso)).replace('\\', '/')
@@ -191,7 +247,7 @@ def update_data_json(fonte_id: str, etichetta_id: str | None,
         print(f"[ERRORE] {DATA_JSON} non trovato.")
         sys.exit(1)
 
-    db = json.loads(DATA_JSON.read_text(encoding='utf-8'))
+    db = read_json_robusto(DATA_JSON)
 
     if not any(f['id'] == fonte_id for f in db.get('fonti', [])):
         print(f"    [ATTENZIONE] Supporto '{fonte_id}' non registrato in data.json. "
@@ -220,7 +276,7 @@ def update_data_json(fonte_id: str, etichetta_id: str | None,
         print(f"\n    [DRY RUN] Nessuna modifica salvata. Voci trovate: {len(nuove_voci)}")
         return
 
-    DATA_JSON.write_text(json.dumps(db, ensure_ascii=False, indent=2), encoding='utf-8')
+    write_json_atomico(DATA_JSON, db)
     print(f"\n    ✅ data.json aggiornato: {len(nuove_voci)} voci per '{fonte_id}/{etichetta_id}'.")
 
 

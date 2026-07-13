@@ -53,22 +53,44 @@ app = Flask(__name__, static_folder=str(BASE))
 
 # ─── HELPERS I/O ───────────────────────────────────────────────────────────────
 
+def _read_json_robusto(path: Path) -> dict:
+    """
+    Legge un JSON tollerando i byte nulli (\\x00) e lo spazio bianco finale
+    lasciati da scritture interrotte o dalla sincronizzazione di OneDrive.
+    Senza questa pulizia, un solo byte spurio in fondo al file mandava in
+    errore l'intera dashboard e tutte le API.
+    """
+    raw = path.read_bytes()
+    if b"\x00" in raw:
+        raw = raw.replace(b"\x00", b"")
+    return json.loads(raw.decode("utf-8").strip())
+
+def _write_json_atomico(path: Path, data: dict):
+    """
+    Scrive su un file temporaneo e poi lo rinomina sul file finale (os.replace,
+    operazione atomica): il file di destinazione non resta mai a metà, quindi
+    non si ripresenta la corruzione con i byte nulli.
+    """
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(tmp, path)
+
 def load_db() -> dict | None:
     if not DATA_JSON.exists():
         return None
-    return json.loads(DATA_JSON.read_text(encoding="utf-8"))
+    return _read_json_robusto(DATA_JSON)
 
 def save_db(db: dict):
     db.setdefault("meta", {})["lastUpdated"] = date.today().isoformat()
-    DATA_JSON.write_text(json.dumps(db, ensure_ascii=False, indent=2), encoding="utf-8")
+    _write_json_atomico(DATA_JSON, db)
 
 def load_sources() -> dict:
     if SOURCES_JSON.exists():
-        return json.loads(SOURCES_JSON.read_text(encoding="utf-8"))
+        return _read_json_robusto(SOURCES_JSON)
     return {"fonti": []}
 
 def save_sources(config: dict):
-    SOURCES_JSON.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
+    _write_json_atomico(SOURCES_JSON, config)
 
 # ─── FILE STATICI ──────────────────────────────────────────────────────────────
 
@@ -209,11 +231,16 @@ def update_focus():
 
 @app.route("/api/add-fonte", methods=["POST"])
 def add_fonte():
-    """Registra un nuovo supporto in data.json E sources.json."""
+    """Registra un nuovo supporto in data.json E sources.json.
+
+    Accetta opzionalmente 'etichetta': {label, colore, descrizione, percorso_radice}
+    così il supporto nasce già completo di etichetta iniziale (un solo passaggio dall'UI).
+    """
     data  = request.get_json(silent=True) or {}
     label = (data.get("label") or "").strip()
     tipo  = (data.get("tipo") or "locale").strip()
     note  = (data.get("note") or "").strip()
+    et_in = data.get("etichetta") or None
 
     if not label:
         return jsonify({"ok": False, "error": "Nome del supporto obbligatorio"}), 400
@@ -231,9 +258,30 @@ def add_fonte():
     if any(f.get("id") == fonte_id for f in db.get("fonti", [])):
         return jsonify({"ok": False, "error": f"Esiste già un supporto con ID '{fonte_id}'"}), 409
 
+    # Etichetta iniziale (opzionale)
+    etichette_db, etichette_cfg, stato_fonte = [], [], "da-collegare"
+    if isinstance(et_in, dict) and (et_in.get("label") or "").strip():
+        et_label  = et_in["label"].strip()
+        colore    = (et_in.get("colore") or "altro").strip()
+        percorso  = (et_in.get("percorso_radice") or "").strip()
+        desc      = (et_in.get("descrizione") or "").strip()
+        et_id     = f"{fonte_id}-{re.sub(r'[^a-z0-9]+', '-', et_label.lower()).strip('-') or colore}"
+        etichette_db.append({
+            "id": et_id, "label": et_label, "colore": colore,
+            "descrizione": desc,
+            "percorso_radice": percorso or None,
+            "stato": "attivo" if percorso else "da-collegare",
+        })
+        etichette_cfg.append({
+            "id": et_id, "label": et_label, "colore": colore,
+            "percorso_radice": percorso or None,
+        })
+        if percorso:
+            stato_fonte = "parziale"
+
     nuova_fonte = {
         "id": fonte_id, "label": label, "tipo": tipo,
-        "stato": "da-collegare", "note": note, "etichette": []
+        "stato": stato_fonte, "note": note, "etichette": etichette_db
     }
     db.setdefault("fonti", []).append(nuova_fonte)
     save_db(db)
@@ -241,7 +289,7 @@ def add_fonte():
     config = load_sources()
     if not any(f.get("id") == fonte_id for f in config.get("fonti", [])):
         config.setdefault("fonti", []).append(
-            {"id": fonte_id, "label": label, "tipo": tipo, "etichette": []})
+            {"id": fonte_id, "label": label, "tipo": tipo, "etichette": etichette_cfg})
         save_sources(config)
 
     return jsonify({"ok": True, "fonte": nuova_fonte})
@@ -339,6 +387,43 @@ def api_scan():
 
 CARTELLE_STANDARD = ("output", "assets", "_archivio")
 
+@app.route("/api/shutdown", methods=["POST"])
+def api_shutdown():
+    """Chiude il server dall'interfaccia (bottone ⏻): risponde e poi termina il processo."""
+    import threading, os
+    threading.Timer(0.6, lambda: os._exit(0)).start()
+    return jsonify({"ok": True})
+
+@app.route("/api/crea-readme-minimi", methods=["POST"])
+def api_crea_readme_minimi():
+    """
+    Crea README.md minimi in profondità su tutte le etichette locali collegate
+    (vedi crea_readme_minimi.py). Con {"dry_run": true} ritorna solo l'anteprima.
+    Opzionale: {"etichetta": "x8-blu"} per limitare a una sola etichetta.
+    """
+    try:
+        from crea_readme_minimi import esegui
+    except ImportError as e:
+        return jsonify({"ok": False, "error": f"crea_readme_minimi.py non importabile: {e}"}), 500
+
+    data = request.get_json(silent=True) or {}
+    dry_run = bool(data.get("dry_run"))
+    etichetta = (data.get("etichetta") or "").strip() or None
+
+    risultati = esegui(load_sources(), dry_run, etichetta)
+    tot_creati   = sum(len(r["creati"]) for r in risultati)
+    tot_riparati = sum(len(r["riparati"]) for r in risultati)
+    return jsonify({
+        "ok": True, "dry_run": dry_run,
+        "creati": tot_creati, "riparati": tot_riparati,
+        "dettaglio": [{
+            "etichetta": r["etichetta"], "etichetta_id": r["etichetta_id"],
+            "creati": len(r["creati"]), "riparati": len(r["riparati"]),
+            "gia_indicizzate": r["gia_indicizzate"], "nota": r["nota"],
+            "esempi": r["creati"][:8],
+        } for r in risultati],
+    })
+
 @app.route("/api/struttura-report", methods=["GET"])
 def struttura_report():
     """
@@ -359,6 +444,10 @@ def struttura_report():
         if fonte.get("tipo") == "gdrive":
             continue
         for et in fonte.get("etichette", []):
+            # Le etichette "raccolta" (foto, risorse) non seguono la struttura
+            # standard output/assets/_archivio: niente controlli di conformità.
+            if et.get("natura") == "raccolta":
+                continue
             radice = et.get("percorso_radice")
             if not radice or not Path(radice).exists():
                 continue
@@ -555,6 +644,54 @@ def _update_readme_stato(readme_path: Path, new_stato: str) -> None:
     readme_path.write_text(parts[0] + '---' + updated_fm + '---' + parts[2],
                            encoding="utf-8")
 
+# ─── AVVIO: LIBERA LA PORTA DA SERVER PRECEDENTI ─────────────────────────────
+# "L'ultimo vince": se un server precedente (anche nascosto, avviato dal .vbs)
+# occupa già la porta, viene chiuso — prima gentilmente via /api/shutdown,
+# poi, se non risponde (versioni vecchie), terminando il processo.
+
+def _libera_porta(port: int):
+    import socket, subprocess, time, urllib.request
+
+    def occupata() -> bool:
+        with socket.socket() as s:
+            s.settimeout(1)
+            return s.connect_ex(("127.0.0.1", port)) == 0
+
+    if not occupata():
+        return
+    print(f"⚠  Porta {port} occupata da un server precedente — lo chiudo...")
+
+    # 1) Via gentile (server recenti hanno /api/shutdown)
+    try:
+        urllib.request.urlopen(
+            urllib.request.Request(f"http://127.0.0.1:{port}/api/shutdown",
+                                   method="POST"), timeout=2)
+        time.sleep(1.5)
+    except Exception:
+        pass
+    if not occupata():
+        print("✓  Server precedente chiuso.")
+        return
+
+    # 2) Versione vecchia senza /api/shutdown: termina il processo sulla porta
+    try:
+        out = subprocess.check_output(
+            ["netstat", "-ano", "-p", "tcp"], text=True, errors="replace")
+        pids = set()
+        for line in out.splitlines():
+            parts = line.split()
+            if len(parts) >= 5 and parts[1].endswith(f":{port}"):
+                pid = parts[-1]
+                if pid.isdigit() and pid != "0":
+                    pids.add(pid)
+        for pid in pids:
+            subprocess.run(["taskkill", "/F", "/PID", pid], capture_output=True)
+        time.sleep(1)
+    except Exception:
+        pass
+    print("✓  Server precedente chiuso." if not occupata()
+          else "✗  Non sono riuscito a liberare la porta: chiudi il processo Python da Gestione attività.")
+
 # ─── MAIN ─────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -564,6 +701,8 @@ if __name__ == "__main__":
     parser.add_argument("--no-browser", action="store_true",
                         help="Non aprire il browser all'avvio")
     args = parser.parse_args()
+
+    _libera_porta(PORT)
 
     print()
     print("╔══════════════════════════════════════════╗")

@@ -109,6 +109,9 @@
     .etichetta-name { flex: 1; font-size: 12px; }
     .etichetta-count { font-size: 10px; color: var(--text2); background: var(--surface2); padding: 1px 6px; border-radius: 10px; flex-shrink: 0; }
     .etichetta-stato { font-size: 10px; color: var(--text2); }
+    .bk-badge { font-size: 9px; padding: 1px 5px; border-radius: 8px; white-space: nowrap; flex-shrink: 0; cursor: default; }
+    .bk-badge.bk-ok      { background: #0d3326; color: var(--ok); }
+    .bk-badge.bk-da-fare { background: #33200d; color: #ffb050; }
 
     .add-fonte-btn {
       width: 100%; padding: 8px; border-radius: var(--radius);
@@ -422,6 +425,7 @@
     <button class="btn btn-ghost" id="btnScan" style="display:none" onclick="apiScan()" title="Ri-scansiona le cartelle locali e aggiorna l'indice">🔄 Scansiona</button>
     <button class="btn btn-ghost" id="btnManutenzione" style="display:none" onclick="openManutenzione()" title="Checklist struttura cartelle: README, file sciolti, sottocartelle standard">🧰 Manutenzione</button>
     <button class="btn btn-ghost" id="btnSyncDrive" style="display:none" onclick="syncDrive()" title="Carica data.json su Google Drive (versione pubblica)">☁ Sincronizza</button>
+    <button class="btn btn-ghost" id="btnShutdown" style="display:none" onclick="chiudiServer()" title="Chiude il server locale (senza passare dal terminale)">⏻ Chiudi</button>
     <button class="btn btn-ghost" onclick="exportJSON()">⬇ Esporta JSON</button>
     <button class="btn btn-primary" onclick="openModal()">＋ Aggiungi Fonte</button>
   </div>
@@ -545,6 +549,20 @@
         </select>
       </div>
       <div class="form-row">
+        <label>Etichetta sul supporto</label>
+        <select id="m-sup-etichetta" onchange="onSupEtichettaChange()"></select>
+        <div class="form-hint">Le etichette standard hanno colore e descrizione già impostati</div>
+      </div>
+      <div class="form-row" id="m-sup-custom-row" style="display:none">
+        <label>Nome etichetta personalizzata</label>
+        <input id="m-sup-et-label" type="text" placeholder="es. Etichetta Arancione" />
+      </div>
+      <div class="form-row" id="m-sup-percorso-row">
+        <label>Percorso radice dell'etichetta</label>
+        <input id="m-sup-percorso" type="text" placeholder="es. E:/Etichetta_Blu (lettera del drive inclusa)" />
+        <div class="form-hint">Per un disco esterno inizia con la lettera del drive, es. <b>D:/Etichetta_Gialla</b>. Lascia vuoto se il supporto non è ancora collegato.</div>
+      </div>
+      <div class="form-row">
         <label>Note (opzionale)</label>
         <input id="m-note" type="text" placeholder="es. account, descrizione..." />
       </div>
@@ -557,23 +575,17 @@
         <select id="m-supporto-sel"></select>
       </div>
       <div class="form-row">
-        <label>Nome etichetta</label>
-        <input id="m-et-label" type="text" placeholder="es. Etichetta Verde" />
+        <label>Etichetta</label>
+        <select id="m-et-std" onchange="onEtStdChange()"></select>
       </div>
-      <div class="form-row">
-        <label>Colore</label>
-        <select id="m-et-colore">
-          <option value="rossa">🔴 Rossa — progetti caldi</option>
-          <option value="gialla">🟡 Gialla — architettura / design</option>
-          <option value="blu">🔵 Blu — fotografie / video / archivio</option>
-          <option value="verde">🟢 Verde</option>
-          <option value="altro">⚪ Altro</option>
-        </select>
+      <div class="form-row" id="m-et-custom-row" style="display:none">
+        <label>Nome etichetta personalizzata</label>
+        <input id="m-et-label" type="text" placeholder="es. Etichetta Arancione" />
       </div>
       <div class="form-row">
         <label>Percorso radice (opzionale — se già disponibile)</label>
-        <input id="m-et-percorso" type="text" placeholder="es. D:/Etichetta_Rossa" />
-        <div class="form-hint">Lascia vuoto se il supporto non è ancora collegato</div>
+        <input id="m-et-percorso" type="text" placeholder="es. E:/Etichetta_Blu" />
+        <div class="form-hint">Per un disco esterno inizia con la lettera del drive, es. <b>D:/Etichetta_Gialla</b>. Lascia vuoto se il supporto non è ancora collegato.</div>
       </div>
       <div class="form-row">
         <label>Descrizione (opzionale)</label>
@@ -595,6 +607,8 @@
     <div id="manutenzioneStats" style="font-size:12px;color:var(--text2);margin-bottom:14px;"></div>
     <div id="manutenzioneList" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:6px;"></div>
     <div class="modal-actions">
+      <button class="btn btn-ghost" id="btnReadmeMinimi" onclick="creaReadmeMinimi()"
+              title="Crea README minimi in profondità su tutte le etichette collegate (D:, E:, C:...) e ripara quelli spuri sui contenitori">📄 README minimi</button>
       <button class="btn btn-ghost" onclick="closeManutenzione()">Chiudi</button>
     </div>
   </div>
@@ -640,6 +654,7 @@
       document.getElementById('btnSyncDrive').style.display = 'inline-block';
       document.getElementById('btnScan').style.display = 'inline-block';
       document.getElementById('btnManutenzione').style.display = 'inline-block';
+      document.getElementById('btnShutdown').style.display = 'inline-block';
     }
     renderSidebar();
     populateAnnoFilter();
@@ -693,6 +708,16 @@
   }
 
   // ─── SIDEBAR ────────────────────────────────────────────────────────────────
+  // Badge backup dell'etichetta: 🛡 verde se il backup c'è (tooltip = dove),
+  // ⚠ arancione se è ancora da organizzare. Niente badge se il campo manca.
+  function bkBadge(e) {
+    const bk = e.backup;
+    if (!bk || !bk.stato) return '';
+    if (bk.stato === 'ok')
+      return `<span class="bk-badge bk-ok" title="Backup: ${esc(bk.dove || 'presente')}">🛡 ${esc(bk.dove || 'BK ok')}</span>`;
+    return `<span class="bk-badge bk-da-fare" title="Backup da organizzare — unico esemplare dei dati">⚠ no BK</span>`;
+  }
+
   function renderSidebar() {
     const container = document.getElementById('fonteList');
     const totalCount = db.voci.length;
@@ -734,6 +759,7 @@
             <div class="etichetta-row ${isActE ? 'active' : ''}" onclick="selectFonte('${eKey}')">
               <div class="etichetta-dot dot-${e.colore || 'nessuna'}"></div>
               <div class="etichetta-name">${esc(e.label)}</div>
+              ${bkBadge(e)}
               ${vociE.length > 0
                 ? `<div class="etichetta-count">${vociE.length}</div>`
                 : `<span class="etichetta-stato">${e.stato || 'da-collegare'}</span>`}
@@ -1229,11 +1255,63 @@
   }
 
   // ─── MODAL ──────────────────────────────────────────────────────────────────
+  // Etichette standard del sistema: colore = categoria, sempre le stesse su ogni supporto.
+  const ETICHETTE_STD = [
+    { key: 'rossa',  emoji: '🔴', label: 'Etichetta Rossa',  colore: 'rossa',  desc: 'Progetti caldi, in corso (personali e scuola)' },
+    { key: 'gialla', emoji: '🟡', label: 'Etichetta Gialla', colore: 'gialla', desc: 'Fotografie originali e catalogo Lightroom' },
+    { key: 'blu',    emoji: '🔵', label: 'Etichetta Blu',    colore: 'blu',    desc: 'Progetti freddi / chiusi' },
+    { key: 'verde',  emoji: '🟢', label: 'Etichetta Verde',  colore: 'verde',  desc: 'Risorse: musica, template, video originali' },
+  ];
+
+  function opzioniEtichetteStd(escludi = []) {
+    return ETICHETTE_STD
+      .filter(e => !escludi.includes(e.colore))
+      .map(e => `<option value="${e.key}">${e.emoji} ${esc(e.label)} — ${esc(e.desc)}</option>`)
+      .join('') + `<option value="altro">⚪ Altra etichetta (nome libero)</option>`;
+  }
+
   function openModal() {
-    // Popola la select dei supporti per il tab etichetta
+    // Tab 1: etichetta iniziale del nuovo supporto
+    document.getElementById('m-sup-etichetta').innerHTML =
+      `<option value="">— Nessuna per ora (la aggiungo dopo) —</option>` + opzioniEtichetteStd();
+    onSupEtichettaChange();
+    // Tab 2: select dei supporti esistenti
     const sel = document.getElementById('m-supporto-sel');
     sel.innerHTML = db.fonti.map(f => `<option value="${esc(f.id)}">${esc(f.label)}</option>`).join('');
+    sel.onchange = aggiornaEtichetteDisponibili;
+    aggiornaEtichetteDisponibili();
     document.getElementById('modal').classList.add('open');
+  }
+
+  // Nel tab 2 mostra solo le etichette standard non ancora presenti sul supporto scelto
+  function aggiornaEtichetteDisponibili() {
+    const fId = document.getElementById('m-supporto-sel').value;
+    const supporto = db.fonti.find(f => f.id === fId);
+    const giaPresenti = (supporto?.etichette || []).map(e => e.colore);
+    document.getElementById('m-et-std').innerHTML = opzioniEtichetteStd(giaPresenti);
+    onEtStdChange();
+  }
+
+  function onSupEtichettaChange() {
+    const v = document.getElementById('m-sup-etichetta').value;
+    document.getElementById('m-sup-custom-row').style.display = v === 'altro' ? '' : 'none';
+    document.getElementById('m-sup-percorso-row').style.display = v === '' ? 'none' : '';
+  }
+
+  function onEtStdChange() {
+    const v = document.getElementById('m-et-std').value;
+    document.getElementById('m-et-custom-row').style.display = v === 'altro' ? '' : 'none';
+  }
+
+  // Risolve la selezione (standard o custom) in {label, colore, descrizione}
+  function risolviEtichetta(selValue, customLabel) {
+    if (selValue === 'altro') {
+      const label = customLabel.trim();
+      if (!label) return null;
+      return { label, colore: 'altro', desc: '' };
+    }
+    const std = ETICHETTE_STD.find(e => e.key === selValue);
+    return std ? { label: std.label, colore: std.colore, desc: std.desc } : null;
   }
   function closeModal() { document.getElementById('modal').classList.remove('open'); }
   document.getElementById('modal').addEventListener('click', e => { if (e.target === document.getElementById('modal')) closeModal(); });
@@ -1259,18 +1337,32 @@
     const note  = document.getElementById('m-note').value.trim();
     if (!label) { alert('Il nome del supporto è obbligatorio.'); return; }
 
+    // Etichetta iniziale (opzionale): standard o custom, con percorso radice
+    const etSel = document.getElementById('m-sup-etichetta').value;
+    let etichetta = null;
+    if (etSel !== '') {
+      const et = risolviEtichetta(etSel, document.getElementById('m-sup-et-label').value);
+      if (!et) { alert('Il nome dell\'etichetta personalizzata è obbligatorio.'); return; }
+      etichetta = {
+        label: et.label, colore: et.colore, descrizione: et.desc,
+        percorso_radice: document.getElementById('m-sup-percorso').value.trim()
+      };
+    }
+
     try {
       const res  = await fetch('/api/add-fonte', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ label, tipo, note })
+        body: JSON.stringify({ label, tipo, note, etichetta })
       });
       const json = await res.json();
       if (!json.ok) { showToast('⚠ ' + (json.error || 'Errore'), 'err'); return; }
       db.fonti.push(json.fonte);
       closeModal();
-      ['m-label','m-note'].forEach(i => document.getElementById(i).value = '');
+      ['m-label','m-note','m-sup-et-label','m-sup-percorso'].forEach(i => document.getElementById(i).value = '');
+      document.getElementById('m-sup-etichetta').value = '';
+      if (etichetta) expandedSupporti.add(json.fonte.id);
       renderSidebar(); renderStats();
-      showToast('✓ Supporto "' + label + '" salvato', 'ok');
+      showToast('✓ Supporto "' + label + '" salvato' + (etichetta ? ' con ' + etichetta.label : ''), 'ok');
     } catch {
       showToast('✗ Server non raggiungibile', 'err');
     }
@@ -1279,11 +1371,13 @@
   async function aggiungiEtichetta() {
     if (!isLocal) { showToast('⚠ Aggiunta possibile solo dal server locale', 'warn'); return; }
     const fId    = document.getElementById('m-supporto-sel').value;
-    const label  = document.getElementById('m-et-label').value.trim();
-    const colore = document.getElementById('m-et-colore').value;
+    const et     = risolviEtichetta(document.getElementById('m-et-std').value,
+                                    document.getElementById('m-et-label').value);
+    if (!et) { alert('Il nome dell\'etichetta personalizzata è obbligatorio.'); return; }
+    const label  = et.label;
+    const colore = et.colore;
     const path   = document.getElementById('m-et-percorso').value.trim();
-    const desc   = document.getElementById('m-et-desc').value.trim();
-    if (!label) { alert('Il nome dell\'etichetta è obbligatorio.'); return; }
+    const desc   = document.getElementById('m-et-desc').value.trim() || et.desc;
     const supporto = db.fonti.find(f => f.id === fId);
     if (!supporto) return;
 
@@ -1307,6 +1401,19 @@
     }
   }
 
+  // ─── CHIUDI SERVER ──────────────────────────────────────────────────────────
+  async function chiudiServer() {
+    if (!confirm('Chiudere il server locale?\nL\'interfaccia resterà visibile ma in sola lettura.')) return;
+    try { await fetch('/api/shutdown', { method: 'POST' }); } catch {}
+    // Il processo termina: la pagina resta ma senza server → nascondi i bottoni locali
+    ['btnScan','btnManutenzione','btnSyncDrive','btnShutdown'].forEach(id => {
+      const b = document.getElementById(id); if (b) b.style.display = 'none';
+    });
+    const badge = document.getElementById('localBadge');
+    if (badge) { badge.textContent = '⏻ server chiuso'; }
+    showToast('✓ Server chiuso — puoi chiudere questa scheda', 'ok');
+  }
+
   // ─── SCANSIONA ──────────────────────────────────────────────────────────────
   async function apiScan() {
     const btn = document.getElementById('btnScan');
@@ -1322,6 +1429,61 @@
       showToast('✗ Server non raggiungibile', 'err');
     } finally {
       btn.disabled = false; btn.textContent = '🔄 Scansiona';
+    }
+  }
+
+  // ─── README MINIMI (bulk, in profondità) ────────────────────────────────────
+  // POST che distingue: endpoint assente (server vecchio) / risposta non-JSON / rete giù
+  async function postJson(url, body) {
+    let res;
+    try {
+      res = await fetch(url, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body || {})
+      });
+    } catch { throw new Error('RETE'); }
+    if (res.status === 404) throw new Error('VECCHIO');
+    try { return await res.json(); } catch { throw new Error('VECCHIO'); }
+  }
+  function toastErroreApi(e) {
+    if (e && e.message === 'VECCHIO')
+      showToast('⚠ Il server attivo è una versione vecchia: chiudilo (per quest\'ultima volta dal terminale) e rilancia "Avvia Universal Index"', 'warn');
+    else
+      showToast('✗ Server non raggiungibile', 'err');
+  }
+
+  // 1° passaggio: dry-run → anteprima e conferma. 2° passaggio: esecuzione reale.
+  async function creaReadmeMinimi() {
+    if (!isLocal) { showToast('⚠ Possibile solo dal server locale', 'warn'); return; }
+    const btn = document.getElementById('btnReadmeMinimi');
+    btn.disabled = true; btn.textContent = '📄 Analizzo...';
+    try {
+      let json = await postJson('/api/crea-readme-minimi', { dry_run: true });
+      if (!json.ok) { showToast('⚠ ' + (json.error || 'Errore'), 'err'); return; }
+
+      if (json.creati === 0 && json.riparati === 0) {
+        showToast('✓ Niente da fare: tutte le cartelle hanno già un README', 'ok');
+        return;
+      }
+      const righe = json.dettaglio
+        .filter(d => d.creati || d.riparati || d.nota)
+        .map(d => d.nota
+          ? `• ${d.etichetta}: ${d.nota}`
+          : `• ${d.etichetta}: ${d.creati} README da creare` +
+            (d.riparati ? `, ${d.riparati} spuri da rimuovere dai contenitori` : ''))
+        .join('\n');
+      if (!confirm(`README minimi — anteprima:\n\n${righe}\n\nProcedere?`)) return;
+
+      btn.textContent = '📄 Creo...';
+      json = await postJson('/api/crea-readme-minimi', { dry_run: false });
+      if (!json.ok) { showToast('⚠ ' + (json.error || 'Errore'), 'err'); return; }
+      showToast(`✓ ${json.creati} README creati` +
+                (json.riparati ? `, ${json.riparati} riparati` : '') +
+                ' — ora premi 🔄 Scansiona', 'ok');
+    } catch (e) {
+      toastErroreApi(e);
+    } finally {
+      btn.disabled = false; btn.textContent = '📄 README minimi';
     }
   }
 

@@ -53,14 +53,31 @@ def upload_to_drive(quiet: bool = False) -> tuple[bool, str]:
         return False, msg
 
     try:
+        from google.auth.exceptions import RefreshError
+
         creds = None
         if TOKEN_FILE.exists():
             creds = Credentials.from_authorized_user_file(str(TOKEN_FILE), DRIVE_SCOPES)
 
         if not creds or not creds.valid:
+            rinnovato = False
             if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
-            else:
+                try:
+                    creds.refresh(Request())
+                    rinnovato = True
+                except RefreshError:
+                    # Token scaduto o revocato ('invalid_grant'): NON è un errore
+                    # fatale. Elimino il token vecchio e riparto dall'autenticazione
+                    # (si apre il browser per il consenso Google).
+                    if not quiet:
+                        print("  [DRIVE] Token scaduto (invalid_grant) — ri-autenticazione...")
+                    try:
+                        TOKEN_FILE.unlink()
+                    except OSError:
+                        pass
+                    creds = None
+
+            if not rinnovato and (not creds or not creds.valid):
                 flow = InstalledAppFlow.from_client_secrets_file(
                     str(CREDENTIALS_FILE), DRIVE_SCOPES)
                 creds = flow.run_local_server(port=0)
